@@ -1,0 +1,16 @@
+[server]
+maxUploadSize = 1
+
+[client]
+showSidebarNavigation = false
+#toolbarMode = "minimal"
+
+[theme]
+primaryColor="#007435"  # Forest Green
+backgroundColor="#F5FFF9"  # Light Green
+secondaryBackgroundColor="#E0F2E9"  # Lighter pale green
+textColor="#003418"  # Dark Green
+font="sans serif"
+
+[ui]
+#hideTopBar = true
