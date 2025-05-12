@@ -53,3 +53,5 @@ def course_reset():
 def reset_chatbot():
     st.session_state['messages'] = []
     st.session_state['drop_file'] = False
+    st.session_state['math_attachments'] = []
+    st.session_state['model_loaded'] = False

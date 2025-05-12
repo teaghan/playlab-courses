@@ -4,6 +4,7 @@ from utils.session import check_state
 from utils.menu import menu
 from utils.aws import get_course_details, create_unit, get_course_units, create_lesson, get_unit_lessons, update_course, delete_unit, delete_lesson
 from utils.display_courses import share_window
+from utils.display_units import display_units
 
 st.set_page_config(page_title="Edit Course", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
 
@@ -28,8 +29,16 @@ if not metadata:
     st.error("Course metadata not found")
     st.stop()
 
+# Store course metadata in session state if not already present
+if "course_name" not in st.session_state:
+    st.session_state.course_name = metadata.get('name', '')
+if "course_description" not in st.session_state:
+    st.session_state.course_description = metadata.get('description', '')
+if "grade_level" not in st.session_state:
+    st.session_state.grade_level = metadata.get('grade_level', 6)
+
 # Display course header
-st.markdown(f"<h1 style='text-align: center; color: grey;'>{metadata.get('name')}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.course_name}</h1>", unsafe_allow_html=True)
 
 with st.columns((5,1))[1]:
     if st.button("Share", key=f'share_{course_code}', use_container_width=True, type="primary"):
@@ -43,7 +52,7 @@ with st.form("edit_course_form"):
     st.markdown('#### Course Name')
     course_name = st.text_input(
         'Name:',
-        value=metadata.get('name', ''),
+        value=st.session_state.course_name,
         label_visibility='collapsed'
     )
     
@@ -54,7 +63,7 @@ with st.form("edit_course_form"):
         label_visibility='collapsed',
         options=list(range(0, 14)),
         format_func=lambda x: 'K' if x == 0 else 'Adult' if x == 13 else x,
-        value=metadata.get('grade_level', 6),
+        value=st.session_state.grade_level,
         help='Select the grade level for this course'
     )
     
@@ -62,7 +71,7 @@ with st.form("edit_course_form"):
     st.markdown('#### Course Description')
     course_description = st.text_area(
         'Description:',
-        value=metadata.get('description', ''),
+        value=st.session_state.course_description,
         height=100,
         label_visibility='collapsed'
     )
@@ -202,62 +211,7 @@ def delete_lesson_confirm(lesson_name, course_code, unit_id, lesson_id):
 
 # Display units and lessons
 st.markdown("## Course Units")
-
-# Get and display units
-units = get_course_units(course_code)
-if units:
-    # Sort units by order
-    units.sort(key=lambda x: x.get('order', 0))
-    
-    for unit in units:
-        # Unit container
-        with st.container():
-            # Unit header with title and description
-            st.markdown(f"### 📚 {unit.get('title')}")
-            st.markdown(unit.get('description', ''))
-            
-            cols = st.columns((1,1,1))
-            # Add Lesson button for this unit
-            if cols[0].button("Add Lesson", key=f"add_lesson_{unit.get('SK')}", use_container_width=True, type="primary"):
-                add_lesson_dialog(unit.get('SK').replace('UNIT#', ''))
-            
-            if cols[1].button("Edit Unit Home Page", key=f"edit_unit_home_{unit.get('SK')}", use_container_width=True, type="secondary"):
-                pass
-            
-            if cols[2].button("Delete Unit", key=f"delete_unit_{unit.get('SK')}", use_container_width=True, type="secondary"):
-                delete_unit_confirm(unit.get('title'), course_code, unit.get('SK').replace('UNIT#', ''))
-            
-            # Get and display lessons for this unit
-            unit_id = unit.get('SK').replace('UNIT#', '')
-            lessons = get_unit_lessons(course_code, unit_id)
-            if lessons:
-                # Sort lessons by order
-                lessons.sort(key=lambda x: x.get('order', 0))
-                
-                # Indent lessons using columns
-                with st.columns((1, 4))[1]:
-                    for lesson in lessons:
-                        with st.container():
-                            st.markdown('---')
-                            st.markdown(f"#### 📝 {lesson.get('title')}")
-                            st.markdown(lesson.get('content', ''))
-                            
-                            # Create columns for lesson actions
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                if st.button("Edit Lesson", key=f'edit_lesson_{lesson.get("SK")}', use_container_width=True, type="primary"):
-                                    # TODO: Implement lesson editing
-                                    pass
-                            with col2:
-                                if st.button("Delete Lesson", key=f'delete_lesson_{lesson.get("SK")}', use_container_width=True):
-                                    delete_lesson_confirm(
-                                        lesson.get('title'),
-                                        course_code,
-                                        unit_id,
-                                        lesson.get("SK").replace("LESSON#", "")
-                                    )
-            
-            st.markdown('---')
+display_units(course_code)
 
 with st.columns((1,1,1))[0]:
     # Add Unit button

@@ -340,4 +340,32 @@ def delete_lesson(course_code, unit_id, lesson_id):
         return True
     except Exception as e:
         logger.error(f"Error deleting lesson: {e}")
+        return False
+
+def update_lesson(course_code, unit_id, lesson_id, content):
+    """
+    Update a lesson's content
+    Args:
+        course_code: The course code
+        unit_id: The unit ID
+        lesson_id: The lesson ID
+        content: The lesson content as a string (markdown)
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Update the lesson content
+        course_table.update_item(
+            Key={
+                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                'SK': f'LESSON#{lesson_id}'
+            },
+            UpdateExpression='SET content = :content',
+            ExpressionAttributeValues={
+                ':content': content
+            }
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error updating lesson: {e}")
         return False 
