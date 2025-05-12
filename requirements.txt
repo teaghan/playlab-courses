@@ -5,3 +5,4 @@ psutil==5.9.6
 streamlit-equation-editor==0.3.6
 playlab-api==0.1.2
 boto3==1.37.1
+pyperclip==1.9.0
