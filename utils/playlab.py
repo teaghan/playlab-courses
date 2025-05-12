@@ -9,7 +9,6 @@ from utils.styling import button_style, columns_style, scroll_to
 custom_button = button_style()
 #custom_columns = columns_style()
 
-
 # Load model
 def load_model(project_id):
     app = PlaylabApp(project_id=project_id, verbose=False)
@@ -140,7 +139,7 @@ def display_conversation(project_id, message_fn, math_input=False):
                     help="Attach a file to your message", 
                     label_visibility='collapsed',
                     accept_multiple_files=False, 
-                    type=["pdf", "png", "jpg", "docx", "csv", "txt", "rtf", "zip"],
+                    type=["pdf", "docx", "pptx", "png", "jpg", "csv", "txt", "xlsx", "tsv", "gif", "webp"],
                     key="file_upload")
     else:
         dropped_files = []

@@ -1,11 +1,21 @@
 import requests
 import os
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import utils.aws
+import utils.check_window
 import utils.config
+import utils.copy
+import utils.display_courses
+import utils.display_units
+import utils.emailing
+import utils.js_eval
 import utils.logger
 import utils.memory_manager
 import utils.menu
+import utils.modify_index
+import utils.playlab
 import utils.session
 import utils.styling
 import utils.warmup
