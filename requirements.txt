@@ -6,3 +6,4 @@ streamlit-equation-editor==0.3.6
 playlab-api==0.1.2
 boto3==1.37.1
 pyperclip==1.9.0
+streamlit_lexical==1.1
