@@ -14,6 +14,9 @@ def check_state(check_user=False, reset_chat=False,
     if "authentication_status" not in st.session_state:
         st.session_state['authentication_status'] = None
     
+    if "role" not in st.session_state:
+        st.session_state['role'] = None
+    
     # Load styling
     load_style()
 

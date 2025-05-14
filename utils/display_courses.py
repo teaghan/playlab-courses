@@ -4,28 +4,6 @@ from utils.config import domain_url
 from utils.clipboard import to_clipboard
 from utils.logger import logger
 
-def load_course(course_code):
-    """
-    Load a course for viewing/editing
-    """
-    course_details = get_course_details(course_code)
-    if not course_details:
-        st.error("Course not found")
-        return
-    
-    # Store course details in session state
-    st.session_state["course_code"] = course_code
-    
-    # Get the course metadata
-    metadata = next((item for item in course_details if item["SK"] == "METADATA"), None)
-
-    if metadata:
-        st.session_state["course_name"] = metadata.get("name", "")
-        st.session_state["course_description"] = metadata.get("description", "")  # Changed from full_description to description
-        st.session_state["grade_level"] = metadata.get("grade_level", 6)
-    
-    #st.switch_page('pages/course.py')
-
 def load_editor(course_code, create_copy=False):
     """
     Load course editor
@@ -45,6 +23,7 @@ def load_editor(course_code, create_copy=False):
         st.session_state["course_description"] = metadata.get("description", "")
         st.session_state["grade_level"] = metadata.get("grade_level", 6)
     
+    st.session_state['template_content'] = ''
     st.switch_page('pages/edit_course.py')
 
 @st.dialog("Delete Course")
@@ -109,23 +88,6 @@ def copy_course(course_code, course):
             st.rerun()
 
 
-@st.dialog("Share Course URL")
-def share_window(course_code):
-    """
-    Show dialog with course URL for sharing
-    """
-    course_url = f"{domain_url()}?{course_code}"
-    
-    st.markdown(f"{course_url}")
-    
-    with st.columns((1,3,1))[1]:
-        # Add copy button
-        if st.button("Copy URL", key=f"copy_url", use_container_width=True, type="primary"):
-            to_clipboard(course_url)
-            st.success("URL copied to clipboard!")
-        if st.button("Close", key=f"close_url", use_container_width=True):
-            st.rerun()
-
 def display_courses(allow_edit=False, allow_copy=False):
     """
     Display courses with various interaction options
@@ -151,7 +113,7 @@ def display_courses(allow_edit=False, allow_copy=False):
             st.markdown(course.get("description"))
             
             # Create columns for buttons
-            col1, col2, col3, col4, col5 = st.columns(5)
+            col1, col2, col3, col4 = st.columns(4)
 
             # Edit button
             if allow_edit:
@@ -161,23 +123,20 @@ def display_courses(allow_edit=False, allow_copy=False):
 
             # Share button
             with col2:
-                if st.button("Share", key=f'share_{course_code}', use_container_width=True, type="primary"):
-                    share_window(course_code)
-
-            # View button
-            with col3:
-                if st.button("View", key=f'view_{course_code}', use_container_width=True):
-                    load_course(course_code)
+                if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
+                    course_url = f"{domain_url()}?{course_code}"
+                    to_clipboard(course_url)
+                    st.success("Copied!")
 
             # Copy button
             if allow_copy:
-                with col4:
-                    if st.button("Copy", key=f'copy_{course_code}', use_container_width=True):
+                with col3:
+                    if st.button("Create a Copy", key=f'copy_{course_code}', use_container_width=True):
                         copy_course(course_code, course)
 
             # Delete button
             if allow_edit:
-                with col5:
+                with col4:
                     if st.button("Delete", key=f'delete_{course_code}', use_container_width=True):
                         delete_course_confirm(course.get("name"), course_code)
 

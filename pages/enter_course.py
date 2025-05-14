@@ -1,6 +1,5 @@
 import streamlit as st
 from utils.session import check_state
-from utils.menu import menu
 from utils.aws import get_course_details
 
 st.set_page_config(
@@ -12,8 +11,6 @@ st.set_page_config(
 # Check user state
 check_state(check_user=False)
 
-# Display page buttons
-menu()
 
 # Center the content
 st.markdown("<h1 style='text-align: center; color: grey;'>Enter Course Code</h1>", unsafe_allow_html=True)

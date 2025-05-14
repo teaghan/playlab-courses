@@ -1,6 +1,6 @@
 import streamlit as st
 import uuid
-from utils.aws import get_course_units, get_unit_sections, create_unit, create_section, delete_unit, delete_section, update_unit, update_section, update_section_orders, upload_content_file
+from utils.aws import get_course_units, get_unit_sections, create_unit, create_section, delete_unit, delete_section, update_unit, get_file_content, update_section_orders, upload_content_file
 from utils.reorder_items import create_sortable_list
 from utils.session import reset_chatbot
 
@@ -119,6 +119,7 @@ def display_units(course_code, allow_editing=True):
                                                     st.session_state["section_overview"] = section.get('overview', '')
                                                     st.session_state["editor_content"] = section.get('content', '')
                                                     st.session_state["update_editor"] = True
+                                                    st.session_state['pdf_content'] = None
                                                     st.switch_page('pages/edit_section.py')
                                             elif section_type == 'file':
                                                 if st.button("Edit", key=f'edit_file_{section.get("SK")}', use_container_width=True, type="primary"):
@@ -128,7 +129,8 @@ def display_units(course_code, allow_editing=True):
                                                     st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
                                                     st.session_state["section_title"] = section.get('title')
                                                     st.session_state["section_overview"] = section.get('overview', '')
-                                                    st.session_state["file_path"] = section.get('file_path')
+                                                    st.session_state["section_file_path"] = section.get('file_path')
+                                                    st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
                                                     st.switch_page('pages/edit_file.py')
                                         
                                         with col2:
@@ -145,7 +147,15 @@ def display_units(course_code, allow_editing=True):
                                             st.session_state["unit_id"] = unit_id
                                             st.session_state["unit_title"] = unit.get('title')
                                             st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
-                                            st.session_state["section_title"] = section.get('title')
+                                            st.session_state['section_title'] = section.get('title')
+                                            st.session_state['section_content'] = section.get('content', '')
+                                            st.session_state["section_file_path"] = section.get('file_path', '')
+                                            st.session_state['section_type'] = section.get('section_type')
+                                            if st.session_state['section_type'] == 'file':
+                                                st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
+                                            else:
+                                                st.session_state['pdf_content'] = None
+                                            reset_chatbot()
                                             st.switch_page('pages/view_section.py')
                                     st.markdown('---')
                 if allow_editing:
@@ -184,98 +194,172 @@ def add_unit_dialog():
         if st.button("Cancel", use_container_width=True):
             st.rerun()
 
+
 @st.dialog("Add Section")
 def add_section_dialog(course_code, unit_id):
-    st.markdown("### Add New Section")
-    section_name = st.text_input("Section Name", placeholder="e.g. The Solar System")
-    section_overview = st.text_area("Section Overview", placeholder="Enter the section overview...", height=100)
-    
-    st.markdown("Either **create your section with your files and AI**")
 
+    if 'add_section_step' not in st.session_state:
+        st.session_state.add_section_step = 1
+
+    section_name_container = st.empty()
+    section_overview_container = st.empty()
     st.session_state.add_section_banner = st.empty()
-    
-    if st.button("Create Section with AI", type="primary", use_container_width=True):
-        if section_name and section_overview:
-            dropped_file = []
-            # Generate a unique section ID
-            section_id = str(uuid.uuid4())
-            # Get the next order number
-            sections = get_unit_sections(course_code, unit_id)
-            next_order = len(sections) + 1
-            
-            # Get unit details
-            units = get_course_units(course_code)
-            unit = next((u for u in units if u.get('SK') == f'UNIT#{unit_id}'), None)
-            if not unit:
-                st.session_state.add_section_banner.error("Failed to get unit details")
-                return
-            
-            # Create the section
-            if create_section(
-                course_code=course_code,
-                unit_id=unit_id,
-                section_id=section_id,
-                title=section_name,
-                overview=section_overview,
-                order=next_order,
-                section_type="content"
-            ):
-                # Reset chat bot
-                reset_chatbot()
-                # Set section details in session state
-                st.session_state["unit_id"] = unit_id
-                st.session_state["unit_title"] = unit.get('title')
-                st.session_state["section_id"] = section_id
-                st.session_state["section_title"] = section_name
-                st.session_state["section_overview"] = section_overview
-                st.session_state["editor_content"] = ""
-                st.session_state["update_editor"] = True
-                # Navigate to edit section page
-                st.switch_page('pages/edit_section.py')
+    next_button_container = st.empty()
+    if st.session_state.add_section_step == 1:
+        
+        with st.container():
+            st.session_state.new_section_name = section_name_container.text_input("Section Title", placeholder="e.g. The Solar System")
+            st.session_state.new_section_overview = section_overview_container.text_area("Section Overview", placeholder="Enter the section overview...", height=100)
+            next_button = next_button_container.button("Next", use_container_width=True, type="primary")
+        if next_button:
+            if st.session_state.new_section_name and st.session_state.new_section_overview:
+                section_name_container.empty()
+                section_overview_container.empty()
+                next_button_container.empty()
+                st.session_state.add_section_step = 2
             else:
-                st.session_state.add_section_banner.error("Failed to create section")
-        else:
-            st.session_state.add_section_banner.error("Please enter both section name and overview")
+                st.session_state.add_section_banner.error("Please enter both section name and overview")
 
-    st.markdown("Or upload a pdf to represent your section")
-    dropped_file = st.file_uploader("File Uploader",
-                    help="Attach a file to your message", 
+    if st.session_state.add_section_step==2:
+
+        with st.container():
+            st.markdown(f"### Create your \"{st.session_state.new_section_name}\" section with existing files and AI assistance")
+            
+            # Check for existing content sections across all units in the course
+            all_units = get_course_units(course_code)
+            content_sections = []
+            for unit in all_units:
+                unit_sections = get_unit_sections(course_code, unit.get('SK').replace('UNIT#', ''))
+                content_sections.extend([
+                    {
+                        'title': s.get('title'),
+                        'content': s.get('content', ''),
+                        'unit_title': unit.get('title')
+                    }
+                    for s in unit_sections 
+                    if s.get('section_type') == 'content' and s.get('content')
+                ])
+            
+            if content_sections:
+                st.markdown("You can use an existing section as a template:")
+                # Create a list of formatted options that include both section and unit titles
+                template_options = [f"{s['title']} (from {s['unit_title']})" for s in content_sections]
+                template_section = st.selectbox(
+                    "Select a template section",
+                    options=template_options,
                     label_visibility='collapsed',
-                    accept_multiple_files=False, 
-                    type=["pdf"],
-                    key="file_upload")
-
-    if dropped_file:
-        if st.button("Create Section with File", type="primary", use_container_width=True):
-            if section_name and section_overview:
+                    index=None,
+                    placeholder="Choose a template section..."
+                )
+                
+                if template_section:
+                    # Extract the section title from the selected option
+                    selected_title = template_section.split(" (from ")[0]
+                    selected_section = next(s for s in content_sections if s['title'] == selected_title)
+                    st.session_state['template_content'] = selected_section['content']
+            
+            if st.button("Create Section with AI", type="primary", use_container_width=True):
+                dropped_file = []
                 # Generate a unique section ID
                 section_id = str(uuid.uuid4())
                 # Get the next order number
                 sections = get_unit_sections(course_code, unit_id)
                 next_order = len(sections) + 1
                 
-                # Upload file to S3
-                file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
-                if file_path:
-                    # Create the section with file
-                    create_section(
-                        course_code=course_code,
-                        unit_id=unit_id,
-                        section_id=section_id,
-                        title=section_name,
-                        overview=section_overview,
-                        order=next_order,
-                        section_type="file",
-                        file_path=file_path
-                    )
-                    st.rerun()
+                # Get unit details
+                units = get_course_units(course_code)
+                unit = next((u for u in units if u.get('SK') == f'UNIT#{unit_id}'), None)
+                if not unit:
+                    st.session_state.add_section_banner.error("Failed to get unit details")
+                    return
+                
+                # Create the section
+                if create_section(
+                    course_code=course_code,
+                    unit_id=unit_id,
+                    section_id=section_id,
+                    title=st.session_state.new_section_name,
+                    overview=st.session_state.new_section_overview,
+                    order=next_order,
+                    section_type="content"
+                ):
+                    # Reset chat bot
+                    reset_chatbot()
+                    # Set section details in session state
+                    st.session_state["unit_id"] = unit_id
+                    st.session_state["unit_title"] = unit.get('title')
+                    st.session_state["section_id"] = section_id
+                    st.session_state["section_title"] = st.session_state.new_section_name
+                    st.session_state["section_overview"] = st.session_state.new_section_overview
+                    # Use template content if available, otherwise empty string
+                    st.session_state["editor_content"] = ''
+                    st.session_state.add_section_step = 1
+                    st.session_state["update_editor"] = True
+                    st.session_state.new_section_name = None
+                    st.session_state.new_section_overview = None
+                    # Navigate to edit section page
+                    st.switch_page('pages/edit_section.py')
                 else:
-                    st.session_state.add_section_banner.error("Failed to upload file")
-            else:
-                st.session_state.add_section_banner.error("Please enter both section name and overview")
+                    st.session_state.add_section_banner.error("Failed to create section")
 
+            st.markdown("---")
+            st.markdown("### Or upload a pdf to represent your section")
+            dropped_file = st.file_uploader("File Uploader",
+                            help="Attach a file to your message", 
+                            label_visibility='collapsed',
+                            accept_multiple_files=False, 
+                            type=["pdf"],
+                            key="file_upload")
+
+            if dropped_file:
+                if st.button("Create Section with File", type="primary", use_container_width=True):
+                    # Generate a unique section ID
+                    section_id = str(uuid.uuid4())
+                    # Get the next order number
+                    sections = get_unit_sections(course_code, unit_id)
+                    next_order = len(sections) + 1
+                    
+                    # Upload file to S3
+                    file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
+                    if file_path:
+                        print(file_path)
+                        # Create the section with file
+                        if create_section(
+                            course_code=course_code,
+                            unit_id=unit_id,
+                            section_id=section_id,
+                            title=st.session_state.new_section_name,
+                            overview=st.session_state.new_section_overview,
+                            order=next_order,
+                            section_type="file",
+                            file_path=file_path
+                        ):
+                            # Reset chat bot
+                            reset_chatbot()
+                            # Set section details in session state
+                            st.session_state["unit_id"] = unit_id
+                            st.session_state["unit_title"] = unit.get('title')
+                            st.session_state["section_id"] = section_id
+                            st.session_state["section_title"] = st.session_state.new_section_name
+                            st.session_state["section_overview"] = st.session_state.new_section_overview
+                            # Use template content if available, otherwise empty string
+                            st.session_state.add_section_step = 1
+                            st.session_state.new_section_name = None
+                            st.session_state.new_section_overview = None
+
+                            # Set section details in session state
+                            st.session_state["section_file_path"] = file_path
+                            st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
+                            st.switch_page('pages/edit_file.py')
+                        else:
+                            st.session_state.add_section_banner.error("Failed to upload file")
+    
     if st.button("Cancel", use_container_width=True):
         dropped_file = []
+        st.session_state.new_section_name = None
+        st.session_state.new_section_overview = None
+        st.session_state.add_section_step = 1
+        st.session_state.template_content = None
         st.rerun()
 
 @st.dialog("Delete Unit")

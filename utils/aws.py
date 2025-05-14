@@ -3,6 +3,7 @@ import datetime
 from botocore.exceptions import ClientError
 import re
 from utils.logger import logger
+import io
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb')
@@ -104,18 +105,22 @@ def delete_course(email, course_code):
         
         # Delete any associated S3 content
         try:
-            s3.delete_objects(
+            # List all objects with the course prefix
+            objects = s3.list_objects_v2(
                 Bucket=bucket_name,
-                Delete={
-                    'Objects': [
-                        {'Key': f'{course_code}/{key}'} 
-                        for key in s3.list_objects_v2(
-                            Bucket=bucket_name,
-                            Prefix=f'{course_code}/'
-                        ).get('Contents', [])
-                    ]
-                }
-            )
+                Prefix=f'{course_code}/'
+            ).get('Contents', [])
+            
+            # Only attempt deletion if there are objects
+            if objects:
+                s3.delete_objects(
+                    Bucket=bucket_name,
+                    Delete={
+                        'Objects': [
+                            {'Key': obj['Key']} for obj in objects
+                        ]
+                    }
+                )
         except ClientError as e:
             logger.error(f"Error deleting S3 objects: {e}")
         
@@ -619,7 +624,7 @@ def update_unit_orders(course_code, unit_orders):
 
 def copy_course_contents(source_course_code, target_course_code):
     """
-    Copy all units and sections from source course to target course
+    Copy all units and sections from source course to target course, including content and files
     """
     try:
         # Get all units from source course
@@ -644,14 +649,68 @@ def copy_course_contents(source_course_code, target_course_code):
             # Copy each section
             for section in sections:
                 section_id = section['SK'].replace('SECTION#', '')
-                create_section(
-                    course_code=target_course_code,
-                    unit_id=unit_id,
-                    section_id=section_id,
-                    title=section['title'],
-                    overview=section.get('overview', ''),
-                    order=section['order']
-                )
+                section_type = section.get('section_type', 'content')
+                
+                if section_type == 'file':
+                    # For file-based sections, copy the file to the new course
+                    file_path = section.get('file_path')
+                    if file_path:
+                        try:
+                            # Get file content using the helper function
+                            file_data = get_file_content(file_path)
+                            if file_data is None:
+                                raise Exception("Could not retrieve file content")
+                            
+                            # Extract filename from the file path
+                            file_name = file_path.split('/')[-1]
+                            
+                            # Create a file-like object from the bytes
+                            file_obj = io.BytesIO(file_data)
+                            
+                            # Upload to target course with same filename
+                            target_key = f'{target_course_code}/{file_name}'
+                            s3.upload_fileobj(
+                                file_obj,
+                                bucket_name,
+                                target_key
+                            )
+                            
+                            # Create section with new file path
+                            create_section(
+                                course_code=target_course_code,
+                                unit_id=unit_id,
+                                section_id=section_id,
+                                title=section['title'],
+                                overview=section.get('overview', ''),
+                                order=section['order'],
+                                section_type='file',
+                                file_path=target_key
+                            )
+                        except Exception as e:
+                            logger.error(f"Error copying file for section {section_id}: {e}")
+                            # Create section without file if copy fails
+                            create_section(
+                                course_code=target_course_code,
+                                unit_id=unit_id,
+                                section_id=section_id,
+                                title=section['title'],
+                                overview=section.get('overview', ''),
+                                order=section['order'],
+                                section_type='content',
+                                content=f"Error: Could not copy original file content. {str(e)}"
+                            )
+                else:
+                    # For content-based sections, copy the content
+                    create_section(
+                        course_code=target_course_code,
+                        unit_id=unit_id,
+                        section_id=section_id,
+                        title=section['title'],
+                        overview=section.get('overview', ''),
+                        order=section['order'],
+                        section_type='content',
+                        content=section.get('content', '')
+                    )
         
         return True
     except Exception as e:

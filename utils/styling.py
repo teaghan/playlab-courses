@@ -36,9 +36,28 @@ def load_style():
         font-style: italic !important;
     }
     """
-    
     # Inject CSS
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+    if st.session_state.role == 'student':
+        css = """
+        <style>
+          /* Outer sidebar container */
+          section[data-testid="stSidebar"] {
+            width: 300px !important;
+          }
+          /* Expanded */
+          section[data-testid="stSidebar"] .css-ng1t4o {
+            width: 300px !important;
+          }
+          /* Collapsed */
+          section[data-testid="stSidebar"] .css-1d391kg {
+            width: 300px !important;
+          }
+        </style>
+        """
+    
+        # Inject CSS
+        st.markdown(f'<style>{css}', unsafe_allow_html=True)
 
 def scroll_to(element_id):
     components.html(f'''
@@ -50,13 +69,18 @@ def scroll_to(element_id):
 
 def button_style():
     pr_color = st.get_option('theme.primaryColor')
-    bg_color = st.get_option('theme.backgroundColor')
-    sbg_color = st.get_option('theme.secondaryBackgroundColor')
+    if st.session_state.role == 'student':
+        bg_color = st.get_option('theme.backgroundColor')
+        sbg_color = st.get_option('theme.secondaryBackgroundColor')
+    else:
+        bg_color = st.get_option('theme.secondaryBackgroundColor')
+        sbg_color = st.get_option('theme.backgroundColor')
+    
     st.markdown(
         f"""
         <style>
         .element-container:has(#button-after) + div button {{
-            background-color: {bg_color};
+            background-color: {sbg_color};
             border: 0px solid {pr_color};
             color: {pr_color};
             padding: 0.5em 1em;
@@ -64,7 +88,7 @@ def button_style():
             transition: background-color 0.2s ease;
         }}
         .element-container:has(#button-after) + div button:hover {{
-            background-color: {sbg_color};
+            background-color: {bg_color};
         }}
         </style>
         """,

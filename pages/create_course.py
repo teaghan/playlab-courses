@@ -1,16 +1,18 @@
 import streamlit as st
 
 from utils.session import check_state
-from utils.menu import menu
 from utils.config import domain_url
 from utils.aws import create_course, validate_course_code
 
-st.set_page_config(page_title="Create Course", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title="Create Course", 
+                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+                   layout="wide", initial_sidebar_state='collapsed')
 
 # Check user state
 check_state(check_user=True)
 
 # Display page buttons
+from utils.menu import menu
 menu()
 
 st.markdown("<h1 style='text-align: center; color: grey;'>Create a New Course</h1>", unsafe_allow_html=True)
@@ -38,7 +40,7 @@ with st.form("course_form"):
 
     # Course Code
     st.markdown('#### Course Code')
-    st.markdown(f'This will be used in the course URL (e.g., {domain_url()}/astro-12)')
+    st.markdown(f'This will be used in the course URL (e.g., {domain_url()}?astro-12)')
     course_code = st.text_input(
         'Code:',
         placeholder='e.g. "astro-12"',
@@ -106,6 +108,6 @@ with st.form("course_form"):
                 
                 st.success("Course created successfully!")
                 # Redirect to course page or dashboard
-                # st.switch_page("pages/dashboard.py") 
+                st.switch_page("pages/dashboard.py") 
             except Exception as e:
                 st.error(f"Error creating course: {str(e)}") 

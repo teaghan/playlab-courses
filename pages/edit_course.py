@@ -1,6 +1,5 @@
 import streamlit as st
 from utils.session import check_state
-from utils.menu import menu
 from utils.aws import get_course_details, create_unit, get_course_units, update_course, delete_unit, delete_section, update_unit_orders
 from utils.display_units import display_units
 from utils.reorder_items import create_sortable_list
@@ -8,12 +7,15 @@ from utils.export import export_course
 from utils.config import domain_url
 from utils.clipboard import to_clipboard
 
-st.set_page_config(page_title="Edit Course", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title="Edit Course", 
+                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+                   layout="wide", initial_sidebar_state='collapsed')
 
 # Check user state
 check_state(check_user=True)
 
 # Display page buttons
+from utils.menu import menu
 menu()
 
 # Get course code from session state
@@ -72,8 +74,8 @@ with col2:
                  help="Download the course files as docx and txt",
                  key=f'download_{course_code}', use_container_width=True, type="secondary"):
         export_dialog()
+
 # Course Details Section
-st.markdown("### Course Details")
 st.markdown(st.session_state.course_description)
 
 # Course editing expander

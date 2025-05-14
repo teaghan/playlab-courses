@@ -2,7 +2,9 @@ import streamlit as st
 from streamlit_lexical import streamlit_lexical
 
 # Page configuration
-st.set_page_config(page_title="Edit Section", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title="Edit Section", 
+                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+                   layout="wide", initial_sidebar_state='collapsed')
 
 from utils.menu import menu
 from utils.session import check_state
@@ -52,26 +54,10 @@ section_overview = st.text_area(
 
 col1, col2 = st.columns([1, 1])
 
-def message_fn(message):
-    return f'''{{
-    "message": "{message}",
-    "course_name": "{st.session_state.get('course_name', '')}",
-    "unit_title": "{st.session_state.get('unit_title', '')}",
-    "module_title": "{section_title}",
-    "content": "{st.session_state.get("editor_content", "")}"
-}}'''
-
-def response_fn(response):
-    if 'content' in response:
-        print("Found content!")
-        st.session_state['editor_content'] = response['content']
-        st.session_state['update_editor'] = True
-        st.rerun()
-
 with col1:
     st.markdown('### Assistant')
     with st.container(height=650):
-        response = display_conversation(open_config()['playlab']['section_editor'], message_fn, math_input=False, user='teacher', response_fn=response_fn)
+        response = display_conversation(open_config()['playlab']['section_editor'], user='teacher', section_title=section_title)
 
 # Section Editor
 with col2:

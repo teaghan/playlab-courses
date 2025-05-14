@@ -1,73 +1,97 @@
 import streamlit as st
-from utils.aws import get_unit_sections, get_course_units, get_file_content
+from utils.aws import get_file_content, s3, bucket_name
 from streamlit_pdf_viewer import pdf_viewer
 import tempfile
 import os
 from utils.logger import logger
 from utils.session import check_state
-from utils.menu import menu
+from utils.docx import markdownToWordFromString
 
-# Initialize session state variables if they don't exist
-if "unit_id" not in st.session_state:
-    st.error("No unit selected. Please return to the course page.")
-    st.stop()
-
-if "section_id" not in st.session_state:
-    st.error("No section selected. Please return to the course page.")
-    st.stop()
-
-# Get section details
-unit_id = st.session_state["unit_id"]
-section_id = st.session_state["section_id"]
-course_code = st.session_state.get("course_code")
-
-# Get section data
-sections = get_unit_sections(course_code, unit_id)
-section = next((s for s in sections if s.get('SK') == f'SECTION#{section_id}'), None)
-
-if not section:
-    st.error("Section not found. Please return to the course page.")
-    st.stop()
-
-# Get unit data
-units = get_course_units(course_code)
-unit = next((u for u in units if u.get('SK') == f'UNIT#{unit_id}'), None)
-
-st.set_page_config(page_title=f"{section.get('title')}", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title=f"{st.session_state['section_title']}", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
 
 # Check user state
 check_state(check_user=False)
 
 # Display page buttons
+from utils.menu import menu
 menu()
 
-if not unit:
-    st.error("Unit not found. Please return to the course page.")
-    st.stop()
 
-# Navigation
-if st.columns((1, 3))[0].button('Return to Course Page', use_container_width=True, type='primary'):
-    st.switch_page('pages/view_course.py')
+# Download Dialog
+@st.dialog("Download Section")
+def download_dialog(section_type, section_title, content=None, file_path=None):
+    if 'download_complete' not in st.session_state:
+        st.session_state.download_complete = False
+    
+    if not st.session_state.download_complete:
+        if section_type == 'content':
+            with st.spinner("Preparing document..."):
+                # Create a temporary file for the DOCX
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
+                    markdownToWordFromString(content, tmp_file.name)
+                    with open(tmp_file.name, 'rb') as docx_file:
+                        docx_bytes = docx_file.read()
+                    os.unlink(tmp_file.name)
+                    st.download_button(
+                        label="Download as DOCX",
+                        data=docx_bytes,
+                        file_name=f"{section_title}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                        type="primary",
+                        on_click=lambda: setattr(st.session_state, 'download_complete', True)
+                    )
+        elif section_type == 'file' and file_path:
+            with st.spinner("Preparing PDF..."):
+                if st.session_state['pdf_content']:
+                    st.download_button(
+                        label="Download PDF",
+                        data=st.session_state['pdf_content'],
+                        file_name=os.path.basename(file_path),
+                        mime="application/pdf",
+                        use_container_width=True,
+                        type="primary",
+                        on_click=lambda: setattr(st.session_state, 'download_complete', True)
+                    )
+                else:
+                    st.error("Failed to retrieve PDF content")
+    else:
+        if st.button("Close", use_container_width=True, type="primary"):
+            st.session_state.download_complete = False
+            st.rerun()
 
 # Display section content based on type
-section_type = section.get('section_type', 'content')
-
-if section_type == 'content':
+if st.session_state['section_type'] == 'content':
+    # Add download button
+    if st.columns((3,1))[1].button("Download .docx", use_container_width=True, type="secondary"):
+        download_dialog(
+            section_type='content',
+            section_title=st.session_state['section_title'],
+            content=st.session_state['section_content']
+        )
     # Display markdown content
-    st.markdown(section.get('content', ''), unsafe_allow_html=True)
-elif section_type == 'file':
+    st.markdown(st.session_state['section_content'], unsafe_allow_html=True)
+    
+elif st.session_state['section_type'] == 'file':
     # Display PDF file
-    file_path = section.get('file_path')
+    file_path = st.session_state['section_file_path']
     if file_path:
         try:
             # Get PDF content from S3
-            pdf_content = get_file_content(file_path)
-            if pdf_content:
+            if st.session_state['pdf_content']:
                 # Create a temporary file
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                    tmp_file.write(pdf_content)
+                    tmp_file.write(st.session_state['pdf_content'])
                     tmp_path = tmp_file.name
                 
+                # Add download button
+                if st.button("Download PDF", use_container_width=True, type="secondary"):
+                    download_dialog(
+                        section_type='file',
+                        section_title=st.session_state['section_title'],
+                        file_path=file_path
+                    )
+
                 # Display PDF using the temporary file
                 pdf_viewer(tmp_path)
                 

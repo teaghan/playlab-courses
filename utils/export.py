@@ -3,6 +3,7 @@ import tempfile
 import zipfile
 from utils.aws import get_course_details, get_course_units, get_unit_sections, s3, bucket_name
 from utils.docx import markdownToWordFromString
+from utils.logger import logger
 
 def export_course(course_code, course_name):
     """
@@ -97,7 +98,7 @@ Description: {unit.get('description', '')}
                                     pdf_content = response['Body'].read()
                                     zip_file.writestr(f'{unit_dir}/{section_filename}.pdf', pdf_content)
                                 except Exception as e:
-                                    print(f"Error processing PDF for {section_title}: {str(e)}")
+                                    logger.error(f"Error processing PDF for {section_title}: {str(e)}")
                         else:
                             # For content-based sections, add text and docx files
                             section_content = section.get('content', '')
@@ -113,6 +114,6 @@ Description: {unit.get('description', '')}
                                         zip_file.writestr(f'{unit_dir}/{section_filename}.docx', docx_file.read())
                                 os.unlink(temp_docx.name)
                             except Exception as e:
-                                print(f"Error converting {section_title} to Word: {str(e)}")
+                                logger.error(f"Error converting {section_title} to Word: {str(e)}")
     
     return temp_zip.name 

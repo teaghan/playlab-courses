@@ -1,15 +1,16 @@
 import streamlit as st
 from st_equation_editor import mathfield
+from utils.aws import get_file_content
+import tempfile
 from playlab_api import PlaylabApp
 import time
 from utils.session import reset_chatbot
-from utils.styling import button_style, columns_style
+from utils.styling import button_style
 from utils.logger import logger
 from tempfile import NamedTemporaryFile
 import os
 
 custom_button = button_style()
-#custom_columns = columns_style()
 
 # Load model
 def load_model(project_id):
@@ -73,6 +74,38 @@ def equation_editor(on_mobile):
             # Strip \mathrm{}
             st.session_state.math_attachments.append(tex)
         st.rerun()
+
+def message_fn(message, role='student', section_title='', section_type='content'):
+    if role == 'teacher':
+        return f'''{{
+        "message": "{message}",
+        "course_name": "{st.session_state.get('course_name', '')}",
+        "unit_title": "{st.session_state.get('unit_title', '')}",
+        "module_title": "{section_title}",
+        "content": "{st.session_state.get("editor_content", "")}",
+        "template_content": "{st.session_state.get("template_content", "")}"
+    }}'''
+    elif role == 'student':
+        if len(st.session_state.messages) > 2 or section_type == 'file':
+            return f'''{{
+            "message": "{message}"
+            }}'''
+        else:
+            return f'''{{
+            "message": "{message}",
+            "student_grade": "{st.session_state.get('grade_level', '')}",
+            "course_name": "{st.session_state.get('course_name', '')}",
+            "unit_title": "{st.session_state.get('unit_title', '')}",
+            "module_title": "{section_title}",
+            "content": "{st.session_state.get("section_content", "")}",
+            }}'''
+
+def response_fn(response, role='student'):
+    if role == 'teacher':
+        if 'content' in response:
+            st.session_state['editor_content'] = response['content']
+            st.session_state['update_editor'] = True
+            st.rerun()
 
 def parse_ai_response(response_str: str) -> dict:
     """Parse AI response string into dictionary without using json library"""
@@ -172,10 +205,15 @@ def parse_ai_response(response_str: str) -> dict:
     return parsed or {}
 
 # Display conversation
-def display_conversation(project_id, message_fn, math_input=False, user='student', response_fn=None):
+def display_conversation(project_id, user='student', section_title='', section_type='content'):
     # Avatar images
     avatar = {"user": f"https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/{user}_avatar.png",
             "assistant": "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/ai_avatar.png"}
+
+    if user == 'teacher':
+        math_input = False
+    else:
+        math_input = False
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
@@ -185,6 +223,8 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
         st.session_state.drop_file = False
     if "model_loaded" not in st.session_state:
         st.session_state.model_loaded = False
+    if "file_upload_key" not in st.session_state:
+        st.session_state.file_upload_key = 0
 
     if not st.session_state.model_loaded:
         st.session_state.ai_app = load_model(project_id)
@@ -238,7 +278,7 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
                     label_visibility='collapsed',
                     accept_multiple_files=False, 
                     type=["pdf", "docx", "pptx", "png", "jpg", "csv", "txt", "xlsx", "tsv", "gif", "webp"],
-                    key="file_upload")
+                    key=f"file_upload_{st.session_state.file_upload_key}")
     else:
         dropped_files = []
     # Create a container for both audio and chat input
@@ -281,9 +321,9 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
                 st.exception(e)
                 if temp_file and os.path.exists(temp_file.name):
                     os.unlink(temp_file.name)
-                del st.session_state[f'file_upload']
-                st.session_state.drop_file = False
-                return response
+            del st.session_state[f'file_upload_{st.session_state.file_upload_key}']
+            st.session_state.file_upload_key += 1
+            st.session_state.drop_file = False
 
         # Add the math attachments to the prompt
         if st.session_state.math_attachments:
@@ -292,14 +332,29 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
                 prompt += f'Expression {i+1}: ${attachment}$\n\n'
             st.session_state.math_attachments = []
 
+        if section_type == 'file' and len(st.session_state.messages) < 2:
+            first_message = "Here is the file I am looking at, please let me know when you are ready to start."
+            with st.session_state.chat_spinner, st.spinner(f"Reading the PDF..."):
+                # Load pdf to temporary file
+                try:
+                    # Get PDF content from S3
+                    if st.session_state['pdf_content']:
+                        # Create a temporary file
+                        with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmp_file:
+                            tmp_file.write(st.session_state['pdf_content'])
+                            tmp_path = tmp_file.name
+                            _ = st.session_state.ai_app.send_message(first_message, file_path=tmp_path)
+                except Exception as e:
+                    logger.error(f"Error loading file: {str(e)}")
+                    st.exception(e)
+
         # Add the user's prompt to the conversation
         st.session_state.messages.append({"role": "user", "content": prompt})
         with next_user_message:
             st.chat_message("user", avatar=avatar["user"]).markdown(escape_markdown(prompt))
 
         # Get the response from the tutor
-        if message_fn:
-            prompt = message_fn(prompt)
+        prompt = message_fn(prompt, user, section_title, section_type)
         with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
             response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
         
@@ -310,12 +365,7 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
             except Exception as e:
                 logger.error(f"Error deleting temporary file: {str(e)}")
         
-        if dropped_files:
-            del st.session_state[f'file_upload']
-            st.session_state.drop_file = False
-        
         response = parse_ai_response(response['content'])
-        print(response)
         st.session_state.messages.append({"role": "assistant", "content": rf"{response['message']}"})    
         st.session_state.email_sent = False
         # Display the response letter by letter
@@ -325,8 +375,8 @@ def display_conversation(project_id, message_fn, math_input=False, user='student
                     st.markdown(sentence)
                     time.sleep(0.005)
 
-        if response_fn:
-            response_fn(response)
+        response_fn(response, user)
+        st.rerun()
 
     #st.header(' ', anchor='bottom')
     #scroll_to('bottom')

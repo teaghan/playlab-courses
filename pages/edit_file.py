@@ -5,14 +5,16 @@ import tempfile
 import os
 from utils.logger import logger
 from utils.session import check_state
-from utils.menu import menu
 
-st.set_page_config(page_title="Edit Section", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title="Edit Section", 
+                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+                   layout="wide", initial_sidebar_state='collapsed')
 
 # Check user state
 check_state(check_user=True)
 
 # Display page buttons
+from utils.menu import menu
 menu()
 
 # Initialize session state variables if they don't exist
@@ -28,10 +30,11 @@ if "section_id" not in st.session_state:
 unit_id = st.session_state["unit_id"]
 section_id = st.session_state["section_id"]
 course_code = st.session_state.get("course_code")
-file_path = st.session_state.get("file_path")
+file_path = st.session_state.get("section_file_path")
 
 # Navigation
 if st.columns((1, 3))[0].button('Return to Course Editor', use_container_width=True, type='primary'):
+    st.session_state['template_content'] = ''
     st.switch_page('pages/edit_course.py')
 
 # Display section title
@@ -64,7 +67,7 @@ new_file = st.file_uploader(
 )
 
 # Save button
-if st.button("Change File", type="primary", use_container_width=True):
+if st.button("Save Changes", type="primary", use_container_width=True):
     try:
         # Update section details
         if update_section(
@@ -93,12 +96,13 @@ if st.button("Change File", type="primary", use_container_width=True):
                         file_path=new_file_path
                     )
                     st.success("Section and file updated successfully!")
+                    st.session_state['template_content'] = ''
                     st.switch_page('pages/edit_course.py')
                 else:
                     st.error("Failed to upload new file")
             else:
                 st.success("Section details updated successfully!")
-                st.switch_page('pages/edit_course.py')
+                st.session_state['template_content'] = ''
         else:
             st.error("Failed to update section")
     except Exception as e:

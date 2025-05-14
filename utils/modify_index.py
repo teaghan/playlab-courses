@@ -1,6 +1,7 @@
 import os
 import streamlit as st
 from utils.config import domain_url
+from utils.logger import logger
 
 def modify_index():
     app_title = "Playlab Courses"
@@ -13,7 +14,7 @@ def modify_index():
     index_path = os.path.join(st_dir, 'static', 'index.html')
     
     if not os.path.exists(index_path):
-        print(f"index.html not found at: {index_path}")
+        logger.error(f"index.html not found at: {index_path}")
         return
 
     # Read the current index.html content
@@ -22,7 +23,7 @@ def modify_index():
 
     # Check if our custom meta tags are already present
     if '<!-- Custom Meta Tags for social preview -->' in content:
-        print("Custom meta tags already present. No changes made.")
+        logger.info("Custom meta tags already present. No changes made.")
         return
 
     # Define the custom meta tags (adjust the content as needed)
@@ -53,14 +54,14 @@ def modify_index():
     if '</head>' in content:
         content = content.replace('</head>', custom_meta + '\n</head>')
     else:
-        print("No closing </head> tag found. Meta tags not inserted.")
+        logger.error("No closing </head> tag found. Meta tags not inserted.")
         return
 
     # Write the modified content back to index.html
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    print("Custom meta tags successfully inserted into index.html")
+    logger.info("Custom meta tags successfully inserted into index.html")
 
 if __name__ == "__main__":
     modify_index()

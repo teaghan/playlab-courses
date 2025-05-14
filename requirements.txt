@@ -4,6 +4,7 @@ streamlit-sortables==0.3.1
 streamlit_lexical==1.1
 streamlit-browser-engine==0.0.3
 streamlit-pdf-viewer==0.0.23
+streamlit_extras==0.5.0
 playlab-api==0.1.2
 s3fs==2025.3.0
 psutil==5.9.6
