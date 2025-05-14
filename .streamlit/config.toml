@@ -3,7 +3,7 @@ maxUploadSize = 5
 
 [client]
 showSidebarNavigation = false
-#toolbarMode = "minimal"
+toolbarMode = "minimal"
 
 [theme]
 primaryColor="#007435"  # Forest Green
@@ -13,4 +13,4 @@ textColor="#003418"  # Dark Green
 font="sans serif"
 
 [ui]
-#hideTopBar = true
+hideTopBar = true
