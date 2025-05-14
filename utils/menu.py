@@ -3,6 +3,8 @@ from streamlit_extras.stylable_container import stylable_container
 from utils.session import user_reset
 from utils.playlab import display_conversation
 from utils.config import open_config
+from utils.aws import get_course_units, get_unit_sections, get_file_content
+from utils.session import reset_chatbot
 
 def logout():
     user_reset()
@@ -45,26 +47,43 @@ def student_menu():
             
             # Get course structure from session state
             course_structure = st.session_state.course_structure
-            
-            # Display each unit and its sections
-            for unit_id, unit_data in course_structure.items():
-                # Create an expander for each unit
-                with st.expander(f"**{unit_data['title']}**"):
-                    # Display each section in the unit
-                    for section_id, section_data in unit_data['sections'].items():
-                        if st.button(
-                            f"{section_data['title']}", 
-                            key=f"section_{unit_id}_{section_id}",
-                            use_container_width=True
-                        ):
-                            # Store section details in session state
-                            st.session_state.download_complete = False
-                            st.session_state["unit_id"] = unit_id
-                            st.session_state["unit_title"] = unit_data['title']
-                            st.session_state["section_id"] = section_id
-                            st.session_state["section_title"] = section_data['title']
-                            # Navigate to view_section page
-                            st.switch_page('pages/view_section.py')
+            units = get_course_units(st.session_state.course_code)
+            if units:
+                # Sort units by order
+                units.sort(key=lambda x: x.get('order', 0))
+                
+                for unit in units:
+                    # Get sections for this unit
+                    unit_id = unit.get('SK').replace('UNIT#', '')
+                    sections = get_unit_sections(st.session_state.course_code, unit_id)
+                    if sections:
+                        # Sort sections by order
+                        sections.sort(key=lambda x: x.get('order', 0))
+                        # Create an expander for each unit
+                        with st.expander(f"**{unit.get('title')}**"):
+                            for section in sections:
+
+                                if st.button(
+                                    f"{section.get('title')}", 
+                                    key=f"section_{unit_id}_{section.get('SK').replace('SECTION#', '')}",
+                                    use_container_width=True
+                                ):
+                                    # Store section details in session state
+                                    st.session_state.download_complete = False
+                                    st.session_state["unit_id"] = unit_id
+                                    st.session_state["unit_title"] = unit.get('title')
+                                    st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
+                                    st.session_state['section_title'] = section.get('title')
+                                    st.session_state['section_content'] = section.get('content', '')
+                                    st.session_state["section_file_path"] = section.get('file_path', '')
+                                    st.session_state['section_type'] = section.get('section_type')
+                                    if st.session_state['section_type'] == 'file':
+                                        st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
+                                    else:
+                                        st.session_state['pdf_content'] = None
+                                    reset_chatbot()
+                                    # Navigate to view_section page
+                                    st.switch_page('pages/view_section.py')
 
 def menu():
     # Determine if a user is logged in or not, then show the correct menu

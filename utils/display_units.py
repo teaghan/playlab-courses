@@ -15,6 +15,9 @@ def display_units(course_code, allow_editing=True):
         units.sort(key=lambda x: x.get('order', 0))
         
         for unit in units:
+            # Get sections for this unit
+            unit_id = unit.get('SK').replace('UNIT#', '')
+            sections = get_unit_sections(course_code, unit_id)
             # Unit container
             with st.container():
                 # Unit header with title and description
@@ -38,9 +41,6 @@ def display_units(course_code, allow_editing=True):
                             label_visibility='collapsed'
                         )
                         
-                        # Get sections for this unit
-                        unit_id = unit.get('SK').replace('UNIT#', '')
-                        sections = get_unit_sections(course_code, unit_id)
                         if sections:
                             # Sort sections by order
                             sections.sort(key=lambda x: x.get('order', 0))
@@ -84,8 +84,6 @@ def display_units(course_code, allow_editing=True):
                                 delete_unit_confirm(unit.get('title'), course_code, unit.get('SK').replace('UNIT#', ''))
                 
                 # Display sections
-                unit_id = unit.get('SK').replace('UNIT#', '')
-                sections = get_unit_sections(course_code, unit_id)
                 if sections:
                     # Sort sections by order
                     sections.sort(key=lambda x: x.get('order', 0))
