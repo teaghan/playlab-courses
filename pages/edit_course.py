@@ -1,14 +1,12 @@
 import streamlit as st
-import uuid
 from utils.session import check_state
 from utils.menu import menu
-from utils.aws import get_course_details, create_unit, get_course_units, create_lesson, get_unit_lessons, update_course, delete_unit, delete_lesson, update_unit_orders
-from utils.display_courses import share_window
+from utils.aws import get_course_details, create_unit, get_course_units, update_course, delete_unit, delete_section, update_unit_orders
 from utils.display_units import display_units
 from utils.reorder_items import create_sortable_list
 from utils.export import export_course
 from utils.config import domain_url
-from utils.copy import to_clipboard
+from utils.clipboard import to_clipboard
 
 st.set_page_config(page_title="Edit Course", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
 
@@ -45,15 +43,15 @@ if "grade_level" not in st.session_state:
 st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.course_name}</h1>", unsafe_allow_html=True)
 
 # Add Unit Dialog
-@st.dialog("Export Course")
+@st.dialog("Export Course Files")
 def export_dialog():
     if 'export_complete' not in st.session_state:
         st.session_state.export_complete = False
     if not st.session_state.export_complete:
         with st.spinner("Processing files..."):
-            zip_data = export_course(course_code)
+            zip_data = export_course(course_code, st.session_state.course_name)
             st.session_state.export_complete = True
-        st.download_button(label="Export Course", 
+        st.download_button(label="Download Files", 
                         data=zip_data, 
                         file_name=f"{st.session_state.course_name}.zip",
                         use_container_width=True,
@@ -66,11 +64,13 @@ def export_dialog():
 _,col1, col2 = st.columns((3,1,1))
 with col1:
     if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
-        course_url = f"{domain_url()}/{course_code}"
+        course_url = f"{domain_url()}?{course_code}"
         to_clipboard(course_url)
         st.success("Copied!")
 with col2:
-    if st.button("Export Course", key=f'download_{course_code}', use_container_width=True, type="secondary"):
+    if st.button("Export Course", 
+                 help="Download the course files as docx and txt",
+                 key=f'download_{course_code}', use_container_width=True, type="secondary"):
         export_dialog()
 # Course Details Section
 st.markdown("### Course Details")
@@ -122,8 +122,7 @@ with st.expander("Edit Course Details"):
             st.session_state.sorted_unit_items = sorted_items
     
     # Action buttons in columns
-    col1, col2 = st.columns(2)
-    with col1:
+    with st.columns((1,2,1))[1]:
         if st.button("Save Changes", type="primary", use_container_width=True):
             try:
                 # Update course with new details
@@ -152,12 +151,8 @@ with st.expander("Edit Course Details"):
                     st.error("Failed to update course details")
             except Exception as e:
                 st.error(f"Error updating course: {str(e)}")
-    
-    with col2:
-        if st.button("Edit Course Home Page", key=f'edit_home_page_{course_code}', use_container_width=True, type="secondary"):
-            pass
 
-# Display units and lessons
+# Display units and sections
 st.markdown("## Course Content")
 display_units(course_code)
 
@@ -203,7 +198,7 @@ def delete_unit_confirm(unit_name, course_code, unit_id):
     Show confirmation dialog for unit deletion
     """
     st.markdown(f'Are you sure you want to delete the unit, "*{unit_name}*"?')
-    st.warning("This will also delete all lessons in this unit.")
+    st.warning("This will also delete all sections in this unit.")
     st.session_state.delete_banner = st.empty()
     col1, col2 = st.columns(2)
     with col1:
@@ -216,21 +211,21 @@ def delete_unit_confirm(unit_name, course_code, unit_id):
         if st.button("Cancel", use_container_width=True):
             st.rerun()
 
-# Delete Lesson Dialog
-@st.dialog("Delete Lesson")
-def delete_lesson_confirm(lesson_name, course_code, unit_id, lesson_id):
+# Delete Section Dialog
+@st.dialog("Delete Section")
+def delete_section_confirm(section_name, course_code, unit_id, section_id):
     """
-    Show confirmation dialog for lesson deletion
+    Show confirmation dialog for section deletion
     """
-    st.markdown(f'Are you sure you want to delete the lesson, "*{lesson_name}*"?')
+    st.markdown(f'Are you sure you want to delete the section, "*{section_name}*"?')
     st.session_state.delete_banner = st.empty()
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Delete Lesson", type="primary", use_container_width=True):
-            if delete_lesson(course_code, unit_id, lesson_id):
+        if st.button("Delete Section", type="primary", use_container_width=True):
+            if delete_section(course_code, unit_id, section_id):
                 st.rerun()
             else:
-                st.session_state.delete_banner.error("Failed to delete lesson")
+                st.session_state.delete_banner.error("Failed to delete section")
     with col2:
         if st.button("Cancel", use_container_width=True):
             st.rerun()

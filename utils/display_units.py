@@ -1,12 +1,12 @@
 import streamlit as st
 import uuid
-from utils.aws import get_course_units, get_unit_lessons, create_unit, create_lesson, delete_unit, delete_lesson, update_unit, update_lesson, update_lesson_orders, upload_content_file
+from utils.aws import get_course_units, get_unit_sections, create_unit, create_section, delete_unit, delete_section, update_unit, update_section, update_section_orders, upload_content_file
 from utils.reorder_items import create_sortable_list
 from utils.session import reset_chatbot
 
-def display_units(course_code):
+def display_units(course_code, allow_editing=True):
     """
-    Display units and lessons for a course with management options
+    Display units and sections for a course with management options
     """
     # Get and display units
     units = get_course_units(course_code)
@@ -21,147 +21,138 @@ def display_units(course_code):
                 st.markdown(f"### {unit.get('title')}")
                 st.markdown(unit.get('description', ''))
                 
-                # Add expander for editing unit details
-                with st.expander("Edit Unit Details"):
-                    st.markdown('##### Unit Title')
-                    unit_title = st.text_input(
-                        "Title",
-                        value=unit.get('title'),
-                        label_visibility='collapsed'
-                    )
-                    st.markdown('##### Unit Description')
-                    unit_description = st.text_area(
-                        "Description",
-                        value=unit.get('description', ''),
-                        height=100,
-                        label_visibility='collapsed'
-                    )
-                    
-                    # Get lessons for this unit
-                    unit_id = unit.get('SK').replace('UNIT#', '')
-                    lessons = get_unit_lessons(course_code, unit_id)
-                    if lessons:
-                        # Sort lessons by order
-                        lessons.sort(key=lambda x: x.get('order', 0))
+                # Add expander for editing unit details only if editing is allowed
+                if allow_editing:
+                    with st.expander("Edit Unit Details"):
+                        st.markdown('##### Unit Title')
+                        unit_title = st.text_input(
+                            "Title",
+                            value=unit.get('title'),
+                            label_visibility='collapsed'
+                        )
+                        st.markdown('##### Unit Description')
+                        unit_description = st.text_area(
+                            "Description",
+                            value=unit.get('description', ''),
+                            height=100,
+                            label_visibility='collapsed'
+                        )
                         
-                        # Add lesson reordering
-                        st.markdown('##### Reorder Lessons')
-                        lesson_items = [lesson.get('title') for lesson in lessons]
-                        with st.columns((1,1))[0]:
-                            st.markdown("Drag and drop lessons to reorder them")
-                            sorted_lesson_items = create_sortable_list(lesson_items, key=f'lesson_sort_{unit_id}')
-                        
-                        # If the order has changed, update the database
-                        if sorted_lesson_items != lesson_items:
-                            # Create a mapping of lesson titles to their IDs
-                            title_to_id = {lesson.get('title'): lesson.get('SK').replace('LESSON#', '') for lesson in lessons}
+                        # Get sections for this unit
+                        unit_id = unit.get('SK').replace('UNIT#', '')
+                        sections = get_unit_sections(course_code, unit_id)
+                        if sections:
+                            # Sort sections by order
+                            sections.sort(key=lambda x: x.get('order', 0))
                             
-                            # Create list of (lesson_id, new_order) tuples
-                            lesson_orders = [(title_to_id[title], i+1) for i, title in enumerate(sorted_lesson_items)]
+                            # Add section reordering
+                            st.markdown('##### Reorder Sections')
+                            section_items = [section.get('title') for section in sections]
+                            with st.columns((1,1))[0]:
+                                st.markdown("Drag and drop sections to reorder them")
+                                sorted_section_items = create_sortable_list(section_items, key=f'section_sort_{unit_id}')
                             
-                            if update_lesson_orders(course_code, unit_id, lesson_orders):
-                                st.rerun()
-                            else:
-                                st.error("Failed to update lesson order")
-                    
-                    # Unit action buttons in columns
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if st.button("Save Changes", key=f'save_unit_{unit.get("SK")}', type="primary", use_container_width=True):
-                            if update_unit(
-                                course_code=course_code,
-                                unit_id=unit.get('SK').replace('UNIT#', ''),
-                                title=unit_title,
-                                description=unit_description
-                            ):
-                                st.rerun()
-                            else:
-                                st.error("Failed to update unit")
-                    
-                    with col2:
-                        if st.button("Edit Unit Home Page", key=f"edit_unit_home_{unit.get('SK')}", use_container_width=True, type="secondary"):
-                            pass
-                    
-                    with col3:
-                        if st.button("Delete Unit", key=f"delete_unit_{unit.get('SK')}", use_container_width=True, type="secondary"):
-                            delete_unit_confirm(unit.get('title'), course_code, unit.get('SK').replace('UNIT#', ''))
-                
-                # Display lessons
-                if lessons:
-                    # Sort lessons by order
-                    lessons.sort(key=lambda x: x.get('order', 0))
-                    
-                    # Indent lessons using columns
-                    with st.columns((1, 4))[1]:
-                        st.markdown('---')
-                        for lesson in lessons:
-                            with st.container():
-                                st.markdown(f"#### {lesson.get('title')}")
-                                st.markdown(lesson.get('overview', ''))
+                            # If the order has changed, update the database
+                            if sorted_section_items != section_items:
+                                # Create a mapping of section titles to their IDs
+                                title_to_id = {section.get('title'): section.get('SK').replace('SECTION#', '') for section in sections}
                                 
-                                # Display lesson content based on type
-                                lesson_type = lesson.get('lesson_type', 'content')
-
-                                # Add expander for editing lesson details
-                                with st.expander("Edit Lesson Details"):
-                                    st.markdown('##### Lesson Title')
-                                    lesson_title = st.text_input(
-                                        "Title",
-                                        value=lesson.get('title'),
-                                        label_visibility='collapsed'
-                                    )
-                                    st.markdown('##### Lesson Overview')
-                                    lesson_overview = st.text_area(
-                                        "Overview",
-                                        value=lesson.get('overview', ''),
-                                        height=100,
-                                        label_visibility='collapsed'
-                                    )
+                                # Create list of (section_id, new_order) tuples
+                                section_orders = [(title_to_id[title], i+1) for i, title in enumerate(sorted_section_items)]
+                                
+                                if update_section_orders(course_code, unit_id, section_orders):
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update section order")
+                        
+                        # Unit action buttons in columns
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if st.button("Save Changes", key=f'save_unit_{unit.get("SK")}', type="primary", use_container_width=True):
+                                if update_unit(
+                                    course_code=course_code,
+                                    unit_id=unit.get('SK').replace('UNIT#', ''),
+                                    title=unit_title,
+                                    description=unit_description
+                                ):
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update unit")
+                        
+                        with col3:
+                            if st.button("Delete Unit", key=f"delete_unit_{unit.get('SK')}", use_container_width=True, type="secondary"):
+                                delete_unit_confirm(unit.get('title'), course_code, unit.get('SK').replace('UNIT#', ''))
+                
+                # Display sections
+                unit_id = unit.get('SK').replace('UNIT#', '')
+                sections = get_unit_sections(course_code, unit_id)
+                if sections:
+                    # Sort sections by order
+                    sections.sort(key=lambda x: x.get('order', 0))
+                    
+                    # Indent sections using columns
+                    with st.columns((1, 4))[1]:
+                        with st.expander("**Sections**"):
+                            st.markdown('---')
+                            for section in sections:
+                                with st.container():
+                                    st.markdown(f"#### {section.get('title')}")
+                                    st.markdown(section.get('overview', ''))
                                     
-                                    # Lesson action buttons in columns
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        if st.button("Save Changes", key=f'save_lesson_{lesson.get("SK")}', type="primary", use_container_width=True):
-                                            if update_lesson(
-                                                course_code=course_code,
-                                                unit_id=unit_id,
-                                                lesson_id=lesson.get("SK").replace("LESSON#", ""),
-                                                title=lesson_title,
-                                                overview=lesson_overview
-                                            ):
-                                                st.rerun()
-                                            else:
-                                                st.error("Failed to update lesson")
+                                    # Display section content based on type
+                                    section_type = section.get('section_type', 'content')                                
                                     
-                                    with col2:
-                                        # Only show edit button for content-type lessons
-                                        if lesson_type == 'content':
-                                            if st.button("Edit Lesson Content", key=f'edit_lesson_content_{lesson.get("SK")}', use_container_width=True, type="secondary"):
-                                                # Reset chat bot
-                                                reset_chatbot()
-                                                # Set lesson details in session state
-                                                st.session_state["unit_id"] = unit_id
-                                                st.session_state["unit_title"] = unit.get('title')
-                                                st.session_state["lesson_id"] = lesson.get("SK").replace("LESSON#", "")
-                                                st.session_state["lesson_title"] = lesson.get('title')
-                                                st.session_state["lesson_overview"] = lesson.get('overview', '')
-                                                st.session_state["editor_content"] = lesson.get('content', '')
-                                                st.session_state["update_editor"] = True
-                                                st.switch_page('pages/edit_lesson.py')
-                                    
-                                    with col3:
-                                        if st.button("Delete Lesson", key=f'delete_lesson_{lesson.get("SK")}', use_container_width=True, type="secondary"):
-                                            delete_lesson_confirm(
-                                                lesson.get('title'),
-                                                course_code,
-                                                unit_id,
-                                                lesson.get("SK").replace("LESSON#", "")
-                                            )
-                                st.markdown('---')
-                with st.columns((1, 4))[1]:
-                    # Add Lesson button
-                    if st.button("Add Lesson", key=f"add_lesson_{unit.get('SK')}", use_container_width=True, type="primary"):
-                        add_lesson_dialog(course_code, unit.get('SK').replace('UNIT#', ''))
+                                    # Other section action buttons only shown if editing is allowed
+                                    if allow_editing:
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                            # Show edit button based on section type
+                                            if section_type == 'content':
+                                                if st.button("Edit", key=f'edit_section_{section.get("SK")}', use_container_width=True, type="primary"):
+                                                    # Reset chat bot
+                                                    reset_chatbot()
+                                                    # Set section details in session state
+                                                    st.session_state["unit_id"] = unit_id
+                                                    st.session_state["unit_title"] = unit.get('title')
+                                                    st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
+                                                    st.session_state["section_title"] = section.get('title')
+                                                    st.session_state["section_overview"] = section.get('overview', '')
+                                                    st.session_state["editor_content"] = section.get('content', '')
+                                                    st.session_state["update_editor"] = True
+                                                    st.switch_page('pages/edit_section.py')
+                                            elif section_type == 'file':
+                                                if st.button("Edit", key=f'edit_file_{section.get("SK")}', use_container_width=True, type="primary"):
+                                                    # Set section details in session state
+                                                    st.session_state["unit_id"] = unit_id
+                                                    st.session_state["unit_title"] = unit.get('title')
+                                                    st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
+                                                    st.session_state["section_title"] = section.get('title')
+                                                    st.session_state["section_overview"] = section.get('overview', '')
+                                                    st.session_state["file_path"] = section.get('file_path')
+                                                    st.switch_page('pages/edit_file.py')
+                                        
+                                        with col2:
+                                            if st.button("Delete", key=f'delete_section_{section.get("SK")}', use_container_width=True, type="secondary"):
+                                                delete_section_confirm(
+                                                    section.get('title'),
+                                                    course_code,
+                                                    unit_id,
+                                                    section.get("SK").replace("SECTION#", "")
+                                                    )
+                                    else:
+                                        # View Section button is always available
+                                        if st.button("View", key=f'view_section_{section.get("SK")}', type="primary", use_container_width=True):
+                                            st.session_state["unit_id"] = unit_id
+                                            st.session_state["unit_title"] = unit.get('title')
+                                            st.session_state["section_id"] = section.get("SK").replace("SECTION#", "")
+                                            st.session_state["section_title"] = section.get('title')
+                                            st.switch_page('pages/view_section.py')
+                                    st.markdown('---')
+                if allow_editing:
+                    with st.columns((1, 4))[1]:
+                        # Add Section button
+                        if st.button("Add Section", key=f"add_section_{unit.get('SK')}", use_container_width=True, type="primary"):
+                            add_section_dialog(course_code, unit.get('SK').replace('UNIT#', ''))
                 st.markdown('---')
 
 @st.dialog("Add Unit")
@@ -193,60 +184,60 @@ def add_unit_dialog():
         if st.button("Cancel", use_container_width=True):
             st.rerun()
 
-@st.dialog("Add Lesson")
-def add_lesson_dialog(course_code, unit_id):
-    st.markdown("### Add New Lesson")
-    lesson_name = st.text_input("Lesson Name", placeholder="e.g. The Solar System")
-    lesson_overview = st.text_area("Lesson Overview", placeholder="Enter the lesson overview...", height=100)
+@st.dialog("Add Section")
+def add_section_dialog(course_code, unit_id):
+    st.markdown("### Add New Section")
+    section_name = st.text_input("Section Name", placeholder="e.g. The Solar System")
+    section_overview = st.text_area("Section Overview", placeholder="Enter the section overview...", height=100)
     
-    st.markdown("Either **create your lesson with your files and AI**")
+    st.markdown("Either **create your section with your files and AI**")
 
-    st.session_state.add_lesson_banner = st.empty()
+    st.session_state.add_section_banner = st.empty()
     
-    if st.button("Create Lesson with AI", type="primary", use_container_width=True):
-        if lesson_name and lesson_overview:
+    if st.button("Create Section with AI", type="primary", use_container_width=True):
+        if section_name and section_overview:
             dropped_file = []
-            # Generate a unique lesson ID
-            lesson_id = str(uuid.uuid4())
+            # Generate a unique section ID
+            section_id = str(uuid.uuid4())
             # Get the next order number
-            lessons = get_unit_lessons(course_code, unit_id)
-            next_order = len(lessons) + 1
+            sections = get_unit_sections(course_code, unit_id)
+            next_order = len(sections) + 1
             
             # Get unit details
             units = get_course_units(course_code)
             unit = next((u for u in units if u.get('SK') == f'UNIT#{unit_id}'), None)
             if not unit:
-                st.session_state.add_lesson_banner.error("Failed to get unit details")
+                st.session_state.add_section_banner.error("Failed to get unit details")
                 return
             
-            # Create the lesson
-            if create_lesson(
+            # Create the section
+            if create_section(
                 course_code=course_code,
                 unit_id=unit_id,
-                lesson_id=lesson_id,
-                title=lesson_name,
-                overview=lesson_overview,
+                section_id=section_id,
+                title=section_name,
+                overview=section_overview,
                 order=next_order,
-                lesson_type="content"
+                section_type="content"
             ):
                 # Reset chat bot
                 reset_chatbot()
-                # Set lesson details in session state
+                # Set section details in session state
                 st.session_state["unit_id"] = unit_id
                 st.session_state["unit_title"] = unit.get('title')
-                st.session_state["lesson_id"] = lesson_id
-                st.session_state["lesson_title"] = lesson_name
-                st.session_state["lesson_overview"] = lesson_overview
+                st.session_state["section_id"] = section_id
+                st.session_state["section_title"] = section_name
+                st.session_state["section_overview"] = section_overview
                 st.session_state["editor_content"] = ""
                 st.session_state["update_editor"] = True
-                # Navigate to edit lesson page
-                st.switch_page('pages/edit_lesson.py')
+                # Navigate to edit section page
+                st.switch_page('pages/edit_section.py')
             else:
-                st.session_state.add_lesson_banner.error("Failed to create lesson")
+                st.session_state.add_section_banner.error("Failed to create section")
         else:
-            st.session_state.add_lesson_banner.error("Please enter both lesson name and overview")
+            st.session_state.add_section_banner.error("Please enter both section name and overview")
 
-    st.markdown("Or upload a pdf to represent your lesson")
+    st.markdown("Or upload a pdf to represent your section")
     dropped_file = st.file_uploader("File Uploader",
                     help="Attach a file to your message", 
                     label_visibility='collapsed',
@@ -255,33 +246,33 @@ def add_lesson_dialog(course_code, unit_id):
                     key="file_upload")
 
     if dropped_file:
-        if st.button("Create Lesson with File", type="primary", use_container_width=True):
-            if lesson_name and lesson_overview:
-                # Generate a unique lesson ID
-                lesson_id = str(uuid.uuid4())
+        if st.button("Create Section with File", type="primary", use_container_width=True):
+            if section_name and section_overview:
+                # Generate a unique section ID
+                section_id = str(uuid.uuid4())
                 # Get the next order number
-                lessons = get_unit_lessons(course_code, unit_id)
-                next_order = len(lessons) + 1
+                sections = get_unit_sections(course_code, unit_id)
+                next_order = len(sections) + 1
                 
                 # Upload file to S3
-                file_path = upload_content_file(dropped_file, course_code, f"{lesson_id}.pdf")
+                file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
                 if file_path:
-                    # Create the lesson with file
-                    create_lesson(
+                    # Create the section with file
+                    create_section(
                         course_code=course_code,
                         unit_id=unit_id,
-                        lesson_id=lesson_id,
-                        title=lesson_name,
-                        overview=lesson_overview,
+                        section_id=section_id,
+                        title=section_name,
+                        overview=section_overview,
                         order=next_order,
-                        lesson_type="file",
+                        section_type="file",
                         file_path=file_path
                     )
                     st.rerun()
                 else:
-                    st.session_state.add_lesson_banner.error("Failed to upload file")
+                    st.session_state.add_section_banner.error("Failed to upload file")
             else:
-                st.session_state.add_lesson_banner.error("Please enter both lesson name and overview")
+                st.session_state.add_section_banner.error("Please enter both section name and overview")
 
     if st.button("Cancel", use_container_width=True):
         dropped_file = []
@@ -293,7 +284,7 @@ def delete_unit_confirm(unit_name, course_code, unit_id):
     Show confirmation dialog for unit deletion
     """
     st.markdown(f'Are you sure you want to delete the unit, "*{unit_name}*"?')
-    st.warning("This will also delete all lessons in this unit.")
+    st.warning("This will also delete all sections in this unit.")
     st.session_state.delete_banner = st.empty()
     col1, col2 = st.columns(2)
     with col1:
@@ -306,20 +297,20 @@ def delete_unit_confirm(unit_name, course_code, unit_id):
         if st.button("Cancel", use_container_width=True):
             st.rerun()
 
-@st.dialog("Delete Lesson")
-def delete_lesson_confirm(lesson_name, course_code, unit_id, lesson_id):
+@st.dialog("Delete Section")
+def delete_section_confirm(section_name, course_code, unit_id, section_id):
     """
-    Show confirmation dialog for lesson deletion
+    Show confirmation dialog for section deletion
     """
-    st.markdown(f'Are you sure you want to delete the lesson, "*{lesson_name}*"?')
+    st.markdown(f'Are you sure you want to delete the section, "*{section_name}*"?')
     st.session_state.delete_banner = st.empty()
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Delete Lesson", type="primary", use_container_width=True):
-            if delete_lesson(course_code, unit_id, lesson_id):
+        if st.button("Delete Section", type="primary", use_container_width=True):
+            if delete_section(course_code, unit_id, section_id):
                 st.rerun()
             else:
-                st.session_state.delete_banner.error("Failed to delete lesson")
+                st.session_state.delete_banner.error("Failed to delete section")
     with col2:
         if st.button("Cancel", use_container_width=True):
             st.rerun() 

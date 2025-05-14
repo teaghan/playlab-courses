@@ -1,7 +1,7 @@
 import streamlit as st
 from utils.aws import get_user_courses, get_course_details, delete_course, validate_course_code, create_course, copy_course_contents
 from utils.config import domain_url
-from utils.copy import to_clipboard
+from utils.clipboard import to_clipboard
 from utils.logger import logger
 
 def load_course(course_code):
@@ -94,7 +94,7 @@ def copy_course(course_code, course):
                         grade=course.get('grade_level', 6)
                     )
                     
-                    # Copy all units and lessons
+                    # Copy all units and sections
                     if copy_course_contents(course_code, new_course_code):
                         st.session_state.copy_banner.success("Course copied successfully!")
                         st.rerun()
@@ -114,7 +114,7 @@ def share_window(course_code):
     """
     Show dialog with course URL for sharing
     """
-    course_url = f"{domain_url()}/{course_code}"
+    course_url = f"{domain_url()}?{course_code}"
     
     st.markdown(f"{course_url}")
     
