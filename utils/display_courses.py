@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.aws import get_user_courses, get_course_details, delete_course, validate_course_code, create_course
+from utils.aws import get_user_courses, get_course_details, delete_course, validate_course_code, create_course, copy_course_contents
 from utils.config import domain_url
 from utils.copy import to_clipboard
 from utils.logger import logger
@@ -78,7 +78,6 @@ def copy_course(course_code, course):
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Copy Course", type="primary", use_container_width=True):
-
             course_code_status = validate_course_code(new_course_code)
             if course_code_status == 'Invalid':
                 st.session_state.copy_banner.error('Course code must start with a letter, contain only lowercase letters, numbers, and hyphens, and be 3-20 characters long.')
@@ -94,10 +93,13 @@ def copy_course(course_code, course):
                         description=course.get('description', ''),
                         grade=course.get('grade_level', 6)
                     )
-                
-                    # TODO: Copy all units and lessons from the original course
-                    # This would require additional functions to copy the course structure
-                    st.rerun()
+                    
+                    # Copy all units and lessons
+                    if copy_course_contents(course_code, new_course_code):
+                        st.session_state.copy_banner.success("Course copied successfully!")
+                        st.rerun()
+                    else:
+                        st.session_state.copy_banner.error("Failed to copy course contents")
                                     
                 except Exception as e:
                     logger.error(f"Failed to copy course: {str(e)}")

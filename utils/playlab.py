@@ -1,10 +1,12 @@
 import streamlit as st
-import json
 from st_equation_editor import mathfield
 from playlab_api import PlaylabApp
 import time
 from utils.session import reset_chatbot
-from utils.styling import button_style, columns_style, scroll_to
+from utils.styling import button_style, columns_style
+from utils.logger import logger
+from tempfile import NamedTemporaryFile
+import os
 
 custom_button = button_style()
 #custom_columns = columns_style()
@@ -72,11 +74,108 @@ def equation_editor(on_mobile):
             st.session_state.math_attachments.append(tex)
         st.rerun()
 
+def parse_ai_response(response_str: str) -> dict:
+    """Parse AI response string into dictionary without using json library"""
+    result = {}
+    i = 0
+    n = len(response_str)
+    
+    def skip_whitespace():
+        nonlocal i
+        while i < n and response_str[i].isspace():
+            i += 1
+    
+    def parse_string():
+        nonlocal i
+        if i >= n or response_str[i] != '"':
+            return None
+        i += 1
+        parts = []
+        while i < n:
+            if response_str[i] == '"':
+                i += 1
+                return ''.join(parts)
+            elif response_str[i] == '\\' and i + 1 < n:
+                # Handle escape sequences
+                if response_str[i+1] in ['"', '\\', '/']:
+                    parts.append(response_str[i+1])
+                    i += 2
+                elif response_str[i+1] == 'n':
+                    parts.append('\n')
+                    i += 2
+                else:
+                    parts.append(response_str[i])
+                    i += 1
+            else:
+                parts.append(response_str[i])
+                i += 1
+        return ''.join(parts)
+    
+    def parse_value():
+        nonlocal i
+        skip_whitespace()
+        if i >= n:
+            return None
+        if response_str[i] == '"':
+            return parse_string()
+        elif response_str[i] == '{':
+            return parse_object()
+        return None
+    
+    def parse_object():
+        nonlocal i
+        obj = {}
+        skip_whitespace()
+        if i >= n or response_str[i] != '{':
+            return None
+        i += 1
+        skip_whitespace()
+        
+        while i < n and response_str[i] != '}':
+            # Parse key
+            skip_whitespace()
+            if response_str[i] != '"':
+                break
+            key = parse_string()
+            if key is None:
+                break
+                
+            # Parse colon
+            skip_whitespace()
+            if i >= n or response_str[i] != ':':
+                break
+            i += 1
+            
+            # Parse value
+            value = parse_value()
+            if value is not None:
+                obj[key] = value
+                
+            # Parse comma or end
+            skip_whitespace()
+            if i < n and response_str[i] == ',':
+                i += 1
+                skip_whitespace()
+        
+        if i < n and response_str[i] == '}':
+            i += 1
+        return obj
+    
+    # Handle possible double-encoding
+    parsed = parse_object()
+    if parsed and 'message' in parsed and isinstance(parsed['message'], str):
+        # Check if message itself is JSON
+        if parsed['message'].startswith('{') and parsed['message'].endswith('}'):
+            nested = parse_object(parsed['message'])
+            if nested:
+                return nested
+    return parsed or {}
+
 # Display conversation
-def display_conversation(project_id, message_fn, math_input=False):
+def display_conversation(project_id, message_fn, math_input=False, user='student', response_fn=None):
     # Avatar images
-    avatar = {"user": "https://raw.githubusercontent.com/teaghan/ai-tutors/main/images/AIT_student_avatar1.png",
-            "assistant": "https://raw.githubusercontent.com/teaghan/ai-tutors/main/images/AIT_avatar2.png"}
+    avatar = {"user": f"https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/{user}_avatar.png",
+            "assistant": "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/ai_avatar.png"}
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
@@ -103,7 +202,6 @@ def display_conversation(project_id, message_fn, math_input=False):
         st.session_state.chat_spinner = st.container()
 
     on_mobile = st.session_state.get('on_mobile', False)
-    print(f'on_mobile: {on_mobile}')
 
     # Organize buttons based on screen size
     if on_mobile:
@@ -166,18 +264,26 @@ def display_conversation(project_id, message_fn, math_input=False):
 
     response = {'message': ''}
     if prompt:
-        # Process dropped files
+        # Process dropped file
         file_path = None
+        temp_file = None
         if dropped_files:
-            for file in dropped_files:
-                try:
-                    with st.session_state.chat_spinner, st.spinner(f"Processing: {file.name}"):
-                        file_path = 'test'
-                except Exception as e:
-                    st.error(f"Error processing {file.name}: {str(e)}")
-                    st.exception(e)
-            del st.session_state[f'file_upload']
-            st.session_state.drop_file = False
+            try:
+                with st.session_state.chat_spinner, st.spinner(f"Processing: {dropped_files.name}"):
+                    # Create a temporary file with the same extension
+                    file_extension = dropped_files.name.split('.')[-1]
+                    temp_file = NamedTemporaryFile(suffix=f'.{file_extension}', delete=False)
+                    temp_file.write(dropped_files.getbuffer())
+                    temp_file.close()  # Close the file to ensure it's written
+                    file_path = temp_file.name
+            except Exception as e:
+                st.error(f"Error processing {dropped_files.name}: {str(e)}")
+                st.exception(e)
+                if temp_file and os.path.exists(temp_file.name):
+                    os.unlink(temp_file.name)
+                del st.session_state[f'file_upload']
+                st.session_state.drop_file = False
+                return response
 
         # Add the math attachments to the prompt
         if st.session_state.math_attachments:
@@ -194,11 +300,22 @@ def display_conversation(project_id, message_fn, math_input=False):
         # Get the response from the tutor
         if message_fn:
             prompt = message_fn(prompt)
-        print(prompt)
-        response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
-
-        # The response string can be parsed directly
-        response = json.loads(response['content'])
+        with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
+            response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
+        
+        # Clean up the temporary file after we're done with it
+        if temp_file and os.path.exists(temp_file.name):
+            try:
+                os.unlink(temp_file.name)
+            except Exception as e:
+                logger.error(f"Error deleting temporary file: {str(e)}")
+        
+        if dropped_files:
+            del st.session_state[f'file_upload']
+            st.session_state.drop_file = False
+        
+        response = parse_ai_response(response['content'])
+        print(response)
         st.session_state.messages.append({"role": "assistant", "content": rf"{response['message']}"})    
         st.session_state.email_sent = False
         # Display the response letter by letter
@@ -206,12 +323,12 @@ def display_conversation(project_id, message_fn, math_input=False):
             with st.empty():
                 for sentence in stream_text(response['message']):
                     st.markdown(sentence)
-                    time.sleep(0.02)
+                    time.sleep(0.005)
 
-        # Re-run the app to update the conversation
-        st.rerun()
+        if response_fn:
+            response_fn(response)
 
-    st.header(' ', anchor='bottom')
-    scroll_to('bottom')
+    #st.header(' ', anchor='bottom')
+    #scroll_to('bottom')
 
     return response

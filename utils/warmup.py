@@ -10,7 +10,6 @@ import utils.copy
 import utils.display_courses
 import utils.display_units
 import utils.emailing
-import utils.js_eval
 import utils.logger
 import utils.memory_manager
 import utils.menu

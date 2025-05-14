@@ -128,7 +128,6 @@ def get_course_details(course_code):
     """
     Get all information related to a course including units and lessons
     """
-    logger.info(f"Getting details for course: {course_code}")  # Debug log
     response = course_table.query(
         KeyConditionExpression='PK = :pk',
         ExpressionAttributeValues={
@@ -136,7 +135,6 @@ def get_course_details(course_code):
         }
     )
     items = response.get('Items', [])
-    logger.info(f"Retrieved items: {items}")  # Debug log
     return items
 
 def get_all_courses():
@@ -196,20 +194,57 @@ def get_course_units(course_code):
     )
     return response.get('Items', [])
 
+def update_unit(course_code, unit_id, title, description):
+    """
+    Update an existing unit's details
+    """
+    try:
+        course_table.update_item(
+            Key={
+                'PK': f'COURSE#{course_code}',
+                'SK': f'UNIT#{unit_id}'
+            },
+            UpdateExpression='SET title = :title, description = :desc',
+            ExpressionAttributeValues={
+                ':title': title,
+                ':desc': description
+            }
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error updating unit: {e}")
+        return False
+
 # Lesson operations
-def create_lesson(course_code, unit_id, lesson_id, title, overview, order):
+def create_lesson(course_code, unit_id, lesson_id, title, overview, order, lesson_type="content", file_path=None, content=None):
     """
     Create a new lesson within a unit
+    Args:
+        course_code: The course code
+        unit_id: The unit ID
+        lesson_id: The lesson ID
+        title: Lesson title
+        overview: Lesson overview
+        order: Lesson order
+        lesson_type: Type of lesson ("file" or "content")
+        file_path: S3 file path for file-based lessons
+        content: Content for AI-generated lessons
     """
-    course_table.put_item(
-        Item={
-            'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-            'SK': f'LESSON#{lesson_id}',
-            'title': title,
-            'overview': overview,
-            'order': order
-        }
-    )
+    item = {
+        'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+        'SK': f'LESSON#{lesson_id}',
+        'title': title,
+        'overview': overview,
+        'order': order,
+        'lesson_type': lesson_type
+    }
+    
+    if lesson_type == "file" and file_path:
+        item['file_path'] = file_path
+    elif lesson_type == "content" and content:
+        item['content'] = content
+        
+    course_table.put_item(Item=item)
     return True
 
 def get_unit_lessons(course_code, unit_id):
@@ -331,6 +366,24 @@ def delete_lesson(course_code, unit_id, lesson_id):
     Delete a single lesson from a unit
     """
     try:
+        # Get lesson details first
+        response = course_table.get_item(
+            Key={
+                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                'SK': f'LESSON#{lesson_id}'
+            }
+        )
+        lesson = response.get('Item', {})
+        
+        # If it's a file-based lesson, delete the file from S3
+        if lesson.get('lesson_type') == 'file':
+            file_path = lesson.get('file_path')
+            if file_path:
+                # Extract filename from path
+                file_name = file_path.split('/')[-1]
+                delete_content_file(course_code, file_name)
+        
+        # Delete the lesson from DynamoDB
         course_table.delete_item(
             Key={
                 'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
@@ -342,30 +395,194 @@ def delete_lesson(course_code, unit_id, lesson_id):
         logger.error(f"Error deleting lesson: {e}")
         return False
 
-def update_lesson(course_code, unit_id, lesson_id, content):
+def update_lesson(course_code, unit_id, lesson_id, title=None, overview=None, content=None, lesson_type=None, file_path=None):
     """
-    Update a lesson's content
+    Update a lesson's details
     Args:
         course_code: The course code
         unit_id: The unit ID
         lesson_id: The lesson ID
-        content: The lesson content as a string (markdown)
+        title: Optional lesson title
+        overview: Optional lesson overview
+        content: Optional lesson content as a string (markdown)
+        lesson_type: Optional lesson type ("file" or "content")
+        file_path: Optional S3 file path for file-based lessons
     Returns:
         bool: True if successful, False otherwise
     """
     try:
-        # Update the lesson content
-        course_table.update_item(
+        # Get current lesson details
+        response = course_table.get_item(
             Key={
                 'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
                 'SK': f'LESSON#{lesson_id}'
-            },
-            UpdateExpression='SET content = :content',
-            ExpressionAttributeValues={
-                ':content': content
             }
         )
+        current_lesson = response.get('Item', {})
+        
+        # Build update expression and values
+        update_parts = []
+        expr_values = {}
+        
+        # Add title update if provided
+        if title is not None:
+            update_parts.append('title = :title')
+            expr_values[':title'] = title
+        else:
+            title = current_lesson.get('title', '')
+        
+        # Add overview update if provided
+        if overview is not None:
+            update_parts.append('overview = :overview')
+            expr_values[':overview'] = overview
+        else:
+            overview = current_lesson.get('overview', '')
+        
+        # Add lesson type update if provided
+        if lesson_type is not None:
+            update_parts.append('lesson_type = :lesson_type')
+            expr_values[':lesson_type'] = lesson_type
+            
+            # If changing to file type, update file path
+            if lesson_type == "file" and file_path:
+                update_parts.append('file_path = :file_path')
+                expr_values[':file_path'] = file_path
+                # Remove content if it exists
+                update_parts.append('content = :empty')
+                expr_values[':empty'] = None
+            # If changing to content type, update content
+            elif lesson_type == "content" and content:
+                update_parts.append('content = :content')
+                expr_values[':content'] = content
+                # Remove file path if it exists
+                update_parts.append('file_path = :empty')
+                expr_values[':empty'] = None
+        
+        # Add content update if provided (only for content-type lessons)
+        elif content is not None and current_lesson.get('lesson_type') == "content":
+            update_parts.append('content = :content')
+            expr_values[':content'] = content
+        
+        # Add file path update if provided (only for file-type lessons)
+        elif file_path is not None and current_lesson.get('lesson_type') == "file":
+            update_parts.append('file_path = :file_path')
+            expr_values[':file_path'] = file_path
+        
+        # Only update if there are changes
+        if update_parts:
+            update_expr = 'SET ' + ', '.join(update_parts)
+            
+            # Update the lesson
+            course_table.update_item(
+                Key={
+                    'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                    'SK': f'LESSON#{lesson_id}'
+                },
+                UpdateExpression=update_expr,
+                ExpressionAttributeValues=expr_values
+            )
+        
         return True
     except Exception as e:
         logger.error(f"Error updating lesson: {e}")
+        return False
+
+def update_unit_orders(course_code, unit_orders):
+    """
+    Update the order of multiple units
+    Args:
+        course_code: The course code
+        unit_orders: List of tuples (unit_id, new_order)
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        for unit_id, new_order in unit_orders:
+            course_table.update_item(
+                Key={
+                    'PK': f'COURSE#{course_code}',
+                    'SK': f'UNIT#{unit_id}'
+                },
+                UpdateExpression='SET #order = :order',
+                ExpressionAttributeNames={
+                    '#order': 'order'
+                },
+                ExpressionAttributeValues={
+                    ':order': new_order
+                }
+            )
+        return True
+    except Exception as e:
+        logger.error(f"Error updating unit orders: {e}")
+        return False
+
+def copy_course_contents(source_course_code, target_course_code):
+    """
+    Copy all units and lessons from source course to target course
+    """
+    try:
+        # Get all units from source course
+        source_units = get_course_units(source_course_code)
+        
+        # For each unit, copy it and its lessons
+        for unit in source_units:
+            unit_id = unit['SK'].replace('UNIT#', '')
+            
+            # Create the unit in target course
+            create_unit(
+                course_code=target_course_code,
+                unit_id=unit_id,
+                title=unit['title'],
+                description=unit.get('description', ''),
+                order=unit['order']
+            )
+            
+            # Get all lessons for this unit
+            lessons = get_unit_lessons(source_course_code, unit_id)
+            
+            # Copy each lesson
+            for lesson in lessons:
+                lesson_id = lesson['SK'].replace('LESSON#', '')
+                create_lesson(
+                    course_code=target_course_code,
+                    unit_id=unit_id,
+                    lesson_id=lesson_id,
+                    title=lesson['title'],
+                    overview=lesson.get('overview', ''),
+                    order=lesson['order']
+                )
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error copying course contents: {e}")
+        return False
+
+def update_lesson_orders(course_code, unit_id, lesson_orders):
+    """
+    Update the order of multiple lessons within a unit
+    Args:
+        course_code: The course code
+        unit_id: The unit ID
+        lesson_orders: List of tuples (lesson_id, new_order)
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        for lesson_id, new_order in lesson_orders:
+            course_table.update_item(
+                Key={
+                    'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                    'SK': f'LESSON#{lesson_id}'
+                },
+                UpdateExpression='SET #order = :order',
+                ExpressionAttributeNames={
+                    '#order': 'order'
+                },
+                ExpressionAttributeValues={
+                    ':order': new_order
+                }
+            )
+        return True
+    except Exception as e:
+        logger.error(f"Error updating lesson orders: {e}")
         return False 

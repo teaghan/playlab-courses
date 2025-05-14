@@ -16,29 +16,40 @@ check_state(check_user=True)
 # Display page buttons
 menu()
 
-# Get lesson details from session state
-lesson_id = st.session_state.get("lesson_id")
-unit_id = st.session_state.get("unit_id")
-course_code = st.session_state.get("course_code")
-
-if not all([lesson_id, unit_id, course_code]):
-    st.error("Lesson details not found. Please return to the course editor.")
-    st.stop()
-
-# Initialize session state for editor
-if 'editor_content' not in st.session_state:
-    st.session_state['editor_content'] = st.session_state.get("lesson_content", "")
-st.session_state['update_editor'] = True
+if 'update_editor' not in st.session_state:
+    st.session_state['update_editor'] = True
+if 'editor_initialized' not in st.session_state:
+    st.session_state['editor_initialized'] = False
 
 def on_change_editor():
-    st.session_state['editor_content'] = st.session_state['editor']
-    st.session_state['update_editor'] = False
+    # Only update editor content and set update_editor to False if the editor has been initialized
+    if st.session_state['editor_initialized']:
+        st.session_state['editor_content'] = st.session_state['editor']
+        st.session_state['update_editor'] = False
+    else:
+        st.session_state['editor_initialized'] = True
 
 # Display lesson title
-st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.get('lesson_title', 'Edit Lesson')}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state['lesson_title']}</h1>", unsafe_allow_html=True)
 
-if st.columns((5, 1))[1].button('Return to Course Editor', use_container_width=True, type='primary'):
+if st.columns((3, 1))[1].button('Return to Course Editor', use_container_width=True, type='primary'):
     st.switch_page('pages/edit_course.py')
+
+# Lesson Details Section
+st.markdown('### Lesson Details')
+st.markdown('##### Lesson Title')
+lesson_title = st.text_input(
+    "Title",
+    value=st.session_state['lesson_title'],
+    label_visibility='collapsed'
+)
+st.markdown('##### Lesson Overview')
+lesson_overview = st.text_area(
+    "Overview",
+    value=st.session_state['lesson_overview'],
+    height=100,
+    label_visibility='collapsed'
+)
 
 col1, col2 = st.columns([1, 1])
 
@@ -47,18 +58,21 @@ def message_fn(message):
     "message": "{message}",
     "course_name": "{st.session_state.get('course_name', '')}",
     "unit_title": "{st.session_state.get('unit_title', '')}",
-    "lesson_title": "{st.session_state.get('lesson_title', '')}",
-    "lesson_content": "{st.session_state.get("editor_content", "")}"
+    "lesson_title": "{lesson_title}",
+    "content": "{st.session_state.get("editor_content", "")}"
 }}'''
+
+def response_fn(response):
+    if 'content' in response:
+        print("Found content!")
+        st.session_state['editor_content'] = response['content']
+        st.session_state['update_editor'] = True
+        st.rerun()
 
 with col1:
     st.markdown('### Lesson Assistant')
     with st.container(height=800):
-        response = display_conversation(open_config()['playlab']['lesson_editor'], message_fn, math_input=False)
-
-if 'lesson_content' in response:
-    pass
-    #st.session_state['editor_content'] = response['lesson_content']
+        response = display_conversation(open_config()['playlab']['lesson_editor'], message_fn, math_input=False, user='teacher', response_fn=response_fn)
 
 # Lesson Editor
 with col2:
@@ -68,31 +82,29 @@ with col2:
         value=st.session_state['editor_content'] if st.session_state.get('update_editor', True) else None,
         placeholder="Enter lesson content",
         key='editor',
-        height=800,
-        overwrite=False,
+        height=750,
+        overwrite=True,
         on_change=on_change_editor
     )
-
-st.markdown('### Lesson Preview')
-with st.expander("Show Lesson Preview", expanded=False):
-    st.markdown(st.session_state['editor_content'], unsafe_allow_html=True)
 
 # Save button
 if st.button("Save Lesson", type="primary", use_container_width=True):
     try:
         if update_lesson(
-            course_code=course_code,
-            unit_id=unit_id,
-            lesson_id=lesson_id,
+            course_code=st.session_state['course_code'],
+            unit_id=st.session_state['unit_id'],
+            lesson_id=st.session_state['lesson_id'],
+            title=st.session_state['lesson_title'],
+            overview=st.session_state['lesson_overview'],
             content=st.session_state['editor_content']
         ):
             st.success("Lesson updated successfully!")
-            st.switch_page('pages/edit_course.py')
+            #st.switch_page('pages/edit_course.py')
         else:
             st.error("Failed to update lesson")
     except Exception as e:
         st.error(f"Error updating lesson: {str(e)}")
 
-# Cancel button
-if st.button("Cancel", use_container_width=True):
-    st.switch_page('pages/edit_course.py')
+st.markdown('### Lesson Preview')
+with st.expander("Show Lesson Preview", expanded=False):
+    st.markdown(st.session_state['editor_content'], unsafe_allow_html=True)
