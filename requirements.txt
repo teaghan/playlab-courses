@@ -11,3 +11,4 @@ pyperclip==1.9.0
 markdowntodocx==0.1.6.1
 python-docx==1.1.2
 PyYAML==6.0.1
+latex2mathml==3.77.0
