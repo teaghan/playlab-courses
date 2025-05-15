@@ -1,13 +1,11 @@
 import streamlit as st
-from st_copy_to_clipboard import st_copy_to_clipboard
-
 from utils.session import check_state
 from utils.aws import get_course_details, create_unit, get_course_units, update_course, delete_unit, delete_section, update_unit_orders
 from utils.display_units import display_units
 from utils.reorder_items import create_sortable_list
 from utils.export import export_course
 from utils.config import domain_url
-#from utils.clipboard import to_clipboard
+from utils.clipboard import to_clipboard
 
 st.set_page_config(page_title="Edit Course", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
@@ -68,12 +66,9 @@ def export_dialog():
 _,col1, col2 = st.columns((3,1,1))
 with col1:
     course_url = f"{domain_url()}?{course_code}"
-    if st_copy_to_clipboard(course_url, before_copy_label="Copy Course URL", after_copy_label="Copied!"):
-        st.success("Copied!")
-    #if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
-    #    course_url = f"{domain_url()}?{course_code}"
-    #    to_clipboard(course_url)
-    #    st.success("Copied!")
+    if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
+        to_clipboard(course_url)
+
 with col2:
     if st.button("Export Course", 
                  help="Download the course files as docx and txt",

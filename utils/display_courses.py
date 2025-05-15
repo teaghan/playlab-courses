@@ -1,8 +1,7 @@
 import streamlit as st
 from utils.aws import get_user_courses, get_course_details, delete_course, validate_course_code, create_course, copy_course_contents
 from utils.config import domain_url
-#from utils.clipboard import to_clipboard
-from st_copy_to_clipboard import st_copy_to_clipboard
+from utils.clipboard import to_clipboard
 
 from utils.logger import logger
 
@@ -126,12 +125,8 @@ def display_courses(allow_edit=False, allow_copy=False):
             # Share button
             with col2:
                 course_url = f"{domain_url()}?{course_code}"
-                if st_copy_to_clipboard(course_url, before_copy_label="Copy Course URL", after_copy_label="Copied!"):
-                    st.success("Copied!")
-                #if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
-                #    course_url = f"{domain_url()}?{course_code}"
-                #    to_clipboard(course_url)
-                #    st.success("Copied!")
+                if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="secondary"):
+                    to_clipboard(course_url)
 
             # Copy button
             if allow_copy:
