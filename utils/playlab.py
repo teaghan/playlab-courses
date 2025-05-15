@@ -356,7 +356,7 @@ def display_conversation(project_id, user='student', section_title='', section_t
         # Get the response from the tutor
         prompt = message_fn(prompt, user, section_title, section_type)
         with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
-            print(f'PROMPT:\n\n{prompt}\n\n')
+            logger.info(f'PROMPT:\n\n{prompt}\n\n')
             response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
         
         # Clean up the temporary file after we're done with it
@@ -366,8 +366,9 @@ def display_conversation(project_id, user='student', section_title='', section_t
             except Exception as e:
                 logger.error(f"Error deleting temporary file: {str(e)}")
         
+        logger.info(f'RESPONSE:\n\n{response}\n\n')
         response = parse_ai_response(response['content'])
-        print(f'RESPONSE:\n\n{response}\n\n')
+        logger.info(f'PARSED RESPONSE:\n\n{response}\n\n')
         st.session_state.messages.append({"role": "assistant", "content": rf"{response['message']}"})    
         st.session_state.email_sent = False
         # Display the response letter by letter
