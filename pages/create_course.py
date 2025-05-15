@@ -61,7 +61,7 @@ with st.form("course_form"):
             label_visibility='collapsed',
             options=list(range(0, 14)),
             format_func=lambda x: 'K' if x == 0 else 'Adult' if x == 13 else x,
-            value=st.session_state.grade,
+            value=st.session_state.grade_level,
             help='Select the grade level for this course'
         )
 
