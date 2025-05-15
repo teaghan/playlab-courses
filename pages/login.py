@@ -75,6 +75,7 @@ with st.columns((1,10,1))[1]:
     with st.form("email_form"):
         st.markdown("Email:")
         email = st.text_input("Email:", label_visibility="collapsed", placeholder='Enter your email address')
+        email = email.strip().lower()
         with st.columns((1,1,1))[1]:
             submit_button = st.form_submit_button("Login", type="primary", use_container_width=True)
         

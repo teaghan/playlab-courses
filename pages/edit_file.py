@@ -20,11 +20,11 @@ menu()
 # Initialize session state variables if they don't exist
 if "unit_id" not in st.session_state:
     st.error("No unit selected. Please return to the course page.")
-    st.stop()
+    t.switch_page("app.py")
 
 if "section_id" not in st.session_state:
     st.error("No section selected. Please return to the course page.")
-    st.stop()
+    st.switch_page("app.py")
 
 # Get section details
 unit_id = st.session_state["unit_id"]

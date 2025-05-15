@@ -25,13 +25,13 @@ course_code = st.session_state.get("course_code")
 course_details = get_course_details(course_code)
 if not course_details:
     st.error("Course not found")
-    st.stop()
+    st.switch_page("app.py")
 
 # Get course metadata
 metadata = next((item for item in course_details if item["SK"] == "METADATA"), None)
 if not metadata:
     st.error("Course metadata not found")
-    st.stop()
+    st.switch_page("app.py")
 
 # Store course metadata in session state if not already present
 if "course_name" not in st.session_state:
