@@ -9,14 +9,13 @@ course_code = st.session_state.get("course_code")
 # Get course details
 course_details = get_course_details(course_code)
 if not course_details:
-    st.error("Course not found")
-    st.switch_page("app.py")
+    st.switch_page("pages/enter_course.py")
 
 # Get course metadata
 metadata = next((item for item in course_details if item["SK"] == "METADATA"), None)
 if not metadata:
     st.error("Course metadata not found")
-    st.switch_page("app.py")
+    st.switch_page("pages/enter_course.py")
 
 # Create nested dictionary of units and sections
 course_structure = {}

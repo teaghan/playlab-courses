@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import utils.aws
 import utils.check_window
 import utils.config
-import utils.copy
+import utils.clipboard
 import utils.display_courses
 import utils.display_units
 import utils.emailing

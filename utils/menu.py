@@ -87,8 +87,8 @@ def student_menu():
 
 def menu():
     # Determine if a user is logged in or not, then show the correct menu
-    if st.session_state.role=='student':
-        student_menu()
-    else:
+    if st.session_state.role=='teacher':
         teacher_menu()
+    else:
+        student_menu()
     return

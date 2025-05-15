@@ -7,7 +7,10 @@ from utils.logger import logger
 from utils.session import check_state
 from utils.docx import markdownToWordFromString
 
-st.set_page_config(page_title=f"{st.session_state['section_title']}", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+try:
+    st.set_page_config(page_title=f"{st.session_state['section_title']}", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+except:
+    st.switch_page('pages/enter_course.py')
 
 # Check user state
 check_state(check_user=False)
