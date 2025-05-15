@@ -1,25 +1,33 @@
 import streamlit as st
-import random
-import string
 import re
-
 from utils.session import check_state
 from utils.emailing import send_access_code
 from utils.config import domain_url
+from utils.access_code import AccessCodeManager
+from utils.logger import logger
+
 st.set_page_config(page_title="Playlab Courses", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png",  layout="wide")
+
+# Initialize access code manager
+access_code_manager = AccessCodeManager()
 
 # If necessary, load tutor data, user data, etc.
 check_state(reset_chat=True)
 
 st.markdown("<h1 style='text-align: center; color: grey;'>Playlab Courses</h1>", unsafe_allow_html=True)
 
-# Initialize session state for access code if not exists
-if 'access_code' not in st.session_state:
-    st.session_state.access_code = None
-
 def create_access_code():
-    access_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    st.session_state.access_code = access_code
+    """Generate and send a new access code"""
+    try:
+        access_code = access_code_manager.generate_access_code(st.session_state.user_email)
+        with st.spinner("Sending access code..."):
+            send_access_code(access_code, st.session_state.user_email)
+        st.success("Access code sent!")
+        return True
+    except Exception as e:
+        st.error("Error generating access code. Please try again.")
+        logger.error(f"Error generating access code: {e}")
+        return False
 
 def is_valid_email(email: str) -> bool:
     """
@@ -58,17 +66,14 @@ def access_code_dialog():
         new_code_button = st.form_submit_button("Send New Code", use_container_width=True)
         
         if verify_button:
-            if entered_code == st.session_state.access_code:
+            if access_code_manager.verify_access_code(st.session_state.user_email, entered_code):
                 st.session_state.authentication_status = True
                 st.switch_page("pages/dashboard.py")
             else:
-                st.error("Invalid access code")
+                st.error("Invalid access code or code has expired")
         
         if new_code_button:
             create_access_code()
-            with st.spinner("Sending access code..."):
-                send_access_code(st.session_state.access_code, st.session_state.user_email)
-            st.success("Access code sent!")
 
 # Email entry form
 with st.columns((1,10,1))[1]:
@@ -90,14 +95,7 @@ with st.columns((1,10,1))[1]:
                         st.session_state.authentication_status = True
                         st.switch_page("pages/dashboard.py")
                     else:
-
-                        # Generate a random 6-digit code
-                        create_access_code()
-                        
-                        # Send email with access code
-                        with st.spinner("Sending access code..."):
-                            send_access_code(st.session_state.access_code, st.session_state.user_email)
-                        
-                        access_code_dialog()
+                        if create_access_code():
+                            access_code_dialog()
             else:
                 st.error("Please enter your email address")

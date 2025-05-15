@@ -320,7 +320,6 @@ def add_section_dialog(course_code, unit_id):
                     # Upload file to S3
                     file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
                     if file_path:
-                        print(file_path)
                         # Create the section with file
                         if create_section(
                             course_code=course_code,
