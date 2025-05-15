@@ -69,7 +69,7 @@ def scroll_to(element_id):
 
 def button_style():
     pr_color = st.get_option('theme.primaryColor')
-    if st.session_state.role == 'student':
+    if 'role' in st.session_state and st.session_state.role == 'student':
         bg_color = st.get_option('theme.backgroundColor')
         sbg_color = st.get_option('theme.secondaryBackgroundColor')
     else:
