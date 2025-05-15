@@ -38,7 +38,7 @@ def load_style():
     """
     # Inject CSS
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-    if st.session_state.role == 'student':
+    if 'role' in st.session_state and st.session_state.role == 'student':
         css = """
         <style>
           /* Outer sidebar container */

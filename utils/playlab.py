@@ -1,6 +1,5 @@
 import streamlit as st
 from st_equation_editor import mathfield
-from utils.aws import get_file_content
 import tempfile
 from playlab_api import PlaylabApp
 import time

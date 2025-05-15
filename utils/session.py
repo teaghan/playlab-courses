@@ -51,7 +51,7 @@ def course_reset():
     st.session_state['course_code'] = ''
     st.session_state['course_name'] = ''
     st.session_state['course_description'] = ''
-    st.session_state['student_grade'] = 6
+    st.session_state['grade_level'] = 6
 
 def reset_chatbot():
     st.session_state['messages'] = []

@@ -22,8 +22,8 @@ if 'course_name' not in st.session_state:
     st.session_state.course_name = ""
 if 'course_code' not in st.session_state:
     st.session_state.course_code = ""
-if 'grade' not in st.session_state:
-    st.session_state.grade = 6
+if 'grade_level' not in st.session_state:
+    st.session_state.grade_level = 6
 if 'course_description' not in st.session_state:
     st.session_state.course_description = ""
 
@@ -90,7 +90,7 @@ with st.form("course_form"):
             # Store form data in session state
             st.session_state.course_name = course_name
             st.session_state.course_code = course_code
-            st.session_state.student_grade = student_grade
+            st.session_state.grade_level = student_grade
             st.session_state.course_description = course_description
             
             try:
@@ -103,7 +103,7 @@ with st.form("course_form"):
                     course_code=st.session_state.course_code,
                     name=st.session_state.course_name,
                     description=st.session_state.course_description,
-                    grade=st.session_state.student_grade
+                    grade=st.session_state.grade_level
                 )
                 
                 st.success("Course created successfully!")
