@@ -1,6 +1,6 @@
 # Playlab Courses
 
-A modern platform that empowers educators to create AI-enhanced course websites with built-in intelligent assistants for both teachers and students.
+A platform that allows educators to create AI-enhanced course websites with built-in intelligent assistants for both teachers and students.
 
 ### Key Features
 
