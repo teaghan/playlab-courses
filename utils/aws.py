@@ -6,6 +6,7 @@ from utils.logger import logger
 import io
 from utils.config import open_config
 import uuid
+import streamlit as st
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb')
@@ -33,6 +34,7 @@ def validate_course_code(code: str) -> bool:
         return 'Good to Go'
 
 # User operations
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_user_courses(email):
     """
     Retrieve all courses for a specific user
@@ -77,6 +79,8 @@ def create_course(email, course_code, name, description, grade):
         'created_at': str(datetime.datetime.now())
     }
     course_table.put_item(Item=metadata_item)
+
+    st.cache_data.clear()
     
     return True
 
@@ -96,6 +100,7 @@ def delete_course(email, course_code):
                     'SK': item['SK']
                 }
             )
+        st.cache_data.clear()
         
         # Delete the user-course relationship
         course_table.delete_item(
@@ -104,7 +109,7 @@ def delete_course(email, course_code):
                 'SK': f'COURSE#{course_code}'
             }
         )
-        
+        st.cache_data.clear()
         # Delete any associated S3 content
         try:
             # List all objects with the course prefix
@@ -123,6 +128,7 @@ def delete_course(email, course_code):
                         ]
                     }
                 )
+            st.cache_data.clear()
         except ClientError as e:
             logger.error(f"Error deleting S3 objects: {e}")
         
@@ -131,6 +137,7 @@ def delete_course(email, course_code):
         logger.error(f"Error deleting course: {e}")
         return False
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_course_details(course_code):
     """
     Get all information related to a course including units and sections
@@ -186,8 +193,10 @@ def create_unit(course_code, unit_id, title, description, order):
             'order': order
         }
     )
+    st.cache_data.clear()
     return True
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_course_units(course_code):
     """
     Get all units for a specific course
@@ -217,6 +226,7 @@ def update_unit(course_code, unit_id, title, description):
                 ':desc': description
             }
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating unit: {e}")
@@ -252,8 +262,10 @@ def create_section(course_code, unit_id, section_id, title, overview, order, sec
         item['content'] = content
         
     course_table.put_item(Item=item)
+    st.cache_data.clear()
     return True
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_unit_sections(course_code, unit_id):
     """
     Get all sections for a specific unit
@@ -288,6 +300,7 @@ def delete_section(course_code, unit_id, section_id):
                     Bucket=bucket_name,
                     Key=section['file_path']
                 )
+                st.cache_data.clear()
             except ClientError as e:
                 logger.error(f"Error deleting S3 file: {e}")
         
@@ -298,6 +311,7 @@ def delete_section(course_code, unit_id, section_id):
                 'SK': f'SECTION#{section_id}'
             }
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error deleting section: {e}")
@@ -345,6 +359,7 @@ def update_section(course_code, unit_id, section_id, title=None, overview=None, 
             UpdateExpression=update_expression,
             ExpressionAttributeValues=expr_attr_values
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating section: {e}")
@@ -368,6 +383,7 @@ def update_section_orders(course_code, unit_id, section_orders):
                         'order': new_order
                     }
                 )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating section orders: {e}")
@@ -381,6 +397,7 @@ def upload_content_file(file_data, course_code, file_name):
     key = f'{course_code}/{file_name}'
     try:
         s3.upload_fileobj(file_data, bucket_name, key)
+        st.cache_data.clear()
         return f'https://{bucket_name}.s3.amazonaws.com/{key}'
     except ClientError as e:
         logger.error(f"Error uploading file: {e}")
@@ -393,6 +410,7 @@ def delete_content_file(course_code, file_name):
     key = f'{course_code}/{file_name}'
     try:
         s3.delete_object(Bucket=bucket_name, Key=key)
+        st.cache_data.clear()
         return True
     except ClientError as e:
         logger.error(f"Error deleting file: {e}")
@@ -420,6 +438,7 @@ def update_course(email, course_code, name, description, grade):
                 ':grade': grade
             }
         )
+        st.cache_data.clear()
         
         # Update course metadata
         course_table.update_item(
@@ -438,7 +457,7 @@ def update_course(email, course_code, name, description, grade):
                 ':grade': grade
             }
         )
-        
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating course: {e}")
@@ -463,7 +482,7 @@ def delete_unit(course_code, unit_id):
                 'SK': f'UNIT#{unit_id}'
             }
         )
-        
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error deleting unit: {e}")
@@ -498,6 +517,7 @@ def delete_section(course_code, unit_id, section_id):
                 'SK': f'SECTION#{section_id}'
             }
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error deleting section: {e}")
@@ -589,7 +609,7 @@ def update_section(course_code, unit_id, section_id, title=None, overview=None, 
                 UpdateExpression=update_expr,
                 ExpressionAttributeValues=expr_values
             )
-        
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating section: {e}")
@@ -619,6 +639,7 @@ def update_unit_orders(course_code, unit_orders):
                     ':order': new_order
                 }
             )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating unit orders: {e}")
@@ -644,7 +665,7 @@ def copy_course_contents(source_course_code, target_course_code):
                 description=unit.get('description', ''),
                 order=unit['order']
             )
-            
+            st.cache_data.clear()
             # Get all sections for this unit
             sections = get_unit_sections(source_course_code, unit_id)
             
@@ -676,7 +697,7 @@ def copy_course_contents(source_course_code, target_course_code):
                                 bucket_name,
                                 target_key
                             )
-                            
+                            st.cache_data.clear()
                             # Create section with new file path
                             create_section(
                                 course_code=target_course_code,
@@ -744,11 +765,13 @@ def update_section_orders(course_code, unit_id, section_orders):
                     ':order': new_order
                 }
             )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating section orders: {e}")
         return False
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_file_content(file_path):
     """
     Retrieve file content from S3
@@ -791,11 +814,13 @@ def create_custom_assistant(course_code, name, instructions):
                 'created_at': str(datetime.datetime.now())
             }
         )
+        st.cache_data.clear()
         return assistant_id
     except Exception as e:
         logger.error(f"Error creating custom assistant: {e}")
         return None
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_custom_assistants(course_code):
     """
     Get all custom AI assistants for a course
@@ -824,6 +849,7 @@ def delete_custom_assistant(course_code, assistant_id):
                 'SK': f'ASSISTANT#{assistant_id}'
             }
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error deleting custom assistant: {e}")
@@ -860,6 +886,7 @@ def update_section_assistant(course_code, unit_id, section_id, assistant_id):
                 ':assistant_id': assistant_id
             }
         )
+        st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error updating section assistant: {e}")
