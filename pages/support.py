@@ -2,6 +2,7 @@ import streamlit as st
 from utils.menu import menu
 from utils.session import check_state
 from utils.emailing import send_email_support
+from utils.error_handling import catch_error
 
 # Streamlit page configuration
 st.set_page_config(
@@ -38,13 +39,16 @@ Please send us a message if you:
                                  key="1", placeholder='👋 All questions and suggestions welcome here!',  label_visibility='collapsed')
 
         if button.button("Send Message 📤", type="primary", use_container_width=True):
-            with st.spinner("Sending message..."):
-                send_email_support(user_email, message)
-            if user_email:
-                st.success("Message sent! We'll be back in touch soon 📨")
-            else:
-                st.success("Message sent! Thank you for your feedback 🙏")
-            request.empty()
-            email.empty()
-            text.empty()
-            button.empty()
+            try:
+                with st.spinner("Sending message..."):
+                    send_email_support(user_email, message)
+                if user_email:
+                    st.success("Message sent! We'll be back in touch soon 📨")
+                else:
+                    st.success("Message sent! Thank you for your feedback 🙏")
+                request.empty()
+                email.empty()
+                text.empty()
+                button.empty()
+            except Exception as e:
+                catch_error()

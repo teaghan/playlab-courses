@@ -5,6 +5,7 @@ from utils.emailing import send_access_code
 from utils.config import domain_url
 from utils.access_code import AccessCodeManager
 from utils.logger import logger
+from utils.error_handling import catch_error
 
 st.set_page_config(page_title="Playlab Courses", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png",  layout="wide")
 
@@ -25,8 +26,7 @@ def create_access_code():
         st.success("Access code sent!")
         return True
     except Exception as e:
-        st.error("Error generating access code. Please try again.")
-        logger.error(f"Error generating access code: {e}")
+        catch_error()
         return False
 
 def is_valid_email(email: str) -> bool:
@@ -66,11 +66,14 @@ def access_code_dialog():
         new_code_button = st.form_submit_button("Send New Code", use_container_width=True)
         
         if verify_button:
-            if access_code_manager.verify_access_code(st.session_state.user_email, entered_code):
-                st.session_state.authentication_status = True
-                st.switch_page("pages/dashboard.py")
-            else:
-                st.error("Invalid access code or code has expired")
+            try:
+                if access_code_manager.verify_access_code(st.session_state.user_email, entered_code):
+                    st.session_state.authentication_status = True
+                    st.switch_page("pages/dashboard.py")
+                else:
+                    st.error("Invalid access code or code has expired")
+            except Exception as e:
+                catch_error()
         
         if new_code_button:
             create_access_code()

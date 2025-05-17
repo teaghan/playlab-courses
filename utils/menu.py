@@ -5,6 +5,7 @@ from utils.playlab import display_conversation
 from utils.config import open_config
 from utils.aws import get_course_units, get_unit_sections, get_file_content
 from utils.session import reset_chatbot
+from utils.assistants import get_assistant_instructions
 
 def logout():
     user_reset()
@@ -21,22 +22,24 @@ def student_menu():
     pr_color = st.get_option('theme.primaryColor')
     bg_color = st.get_option('theme.backgroundColor')
 
-    with st.sidebar:
-        with stylable_container(key="my_styled_popover", 
-                                css_styles=f"""button {{
-            background-color: {pr_color} !important;
-            color: {bg_color} !important; 
-            border-radius: 0.25rem !important;
-            padding: 0.5rem 1rem !important;
-        }}
-        """):
-            po = st.popover("💬 Ask a question", 
-                            help="Ask AI about this section",
-                            use_container_width=True)
-            with po:
-                display_conversation(open_config()['playlab']['student_assistant'], user='student', 
-                                     section_title=st.session_state['section_title'],
-                                     section_type=st.session_state['section_type'])
+    if st.session_state.get('assistant_instructions') is not None:
+
+        with st.sidebar:
+            with stylable_container(key="my_styled_popover", 
+                                    css_styles=f"""button {{
+                background-color: {pr_color} !important;
+                color: {bg_color} !important; 
+                border-radius: 0.25rem !important;
+                padding: 0.5rem 1rem !important;
+            }}
+            """):
+                po = st.popover("💬 Ask a question", 
+                                help="Ask AI about this section",
+                                use_container_width=True)
+                with po:
+                    display_conversation(open_config()['playlab']['student_assistant'], user='student', 
+                                        section_title=st.session_state['section_title'],
+                                        section_type=st.session_state['section_type'])
     
     # Home button to go back to view course
     if st.sidebar.button(f'{st.session_state.course_name}', icon="🏠", use_container_width=False, type='secondary'):
@@ -77,6 +80,7 @@ def student_menu():
                                     st.session_state['section_content'] = section.get('content', '')
                                     st.session_state["section_file_path"] = section.get('file_path', '')
                                     st.session_state['section_type'] = section.get('section_type')
+                                    st.session_state['assistant_instructions'] = get_assistant_instructions(section)
                                     if st.session_state['section_type'] == 'file':
                                         st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
                                     else:

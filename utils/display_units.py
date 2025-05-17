@@ -3,6 +3,7 @@ import uuid
 from utils.aws import get_course_units, get_unit_sections, create_unit, create_section, delete_unit, delete_section, update_unit, get_file_content, update_section_orders, upload_content_file
 from utils.reorder_items import create_sortable_list
 from utils.session import reset_chatbot
+from utils.assistants import get_assistant_instructions
 
 def display_units(course_code, allow_editing=True):
     """
@@ -149,6 +150,7 @@ def display_units(course_code, allow_editing=True):
                                             st.session_state['section_content'] = section.get('content', '')
                                             st.session_state["section_file_path"] = section.get('file_path', '')
                                             st.session_state['section_type'] = section.get('section_type')
+                                            st.session_state['assistant_instructions'] = get_assistant_instructions(section)
                                             if st.session_state['section_type'] == 'file':
                                                 st.session_state['pdf_content'] = get_file_content(st.session_state["section_file_path"])
                                             else:

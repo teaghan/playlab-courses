@@ -2,6 +2,12 @@
 
 A platform that allows educators to create AI-enhanced course websites with built-in intelligent assistants for both teachers and students.
 
+## Live Access
+
+- **Main Platform**: [playlab-courses.com](https://playlab-courses.com)
+- **Example Course**: [playlab-courses.com?astro-12](https://playlab-courses.com?astro-12)
+
+
 ### Key Features
 
 - **AI-Powered Course Creation**: Built-in AI assistants help teachers create course materials
@@ -14,11 +20,6 @@ A platform that allows educators to create AI-enhanced course websites with buil
 ![Teacher using a template to create new content](./images/template_screenshot.png)
 
 ![Student getting AI assistance on an assignment](./images/assignment_assistance_screenshot.png)
-
-## Live Access
-
-- **Main Platform**: [playlab-courses.com](https://playlab-courses.com)
-- **Example Course**: [playlab-courses.com?astro-12](https://playlab-courses.com?astro-12)
 
 ## 🤖 AI Assistants
 
@@ -59,7 +60,7 @@ A platform that allows educators to create AI-enhanced course websites with buil
 3. **Create Course Content**
    - For each section:
      - Add a title and overview
-     - Use the built-in editor to create content
+     - Use the built-in editor to create content OR upload a PDF, which will represent that section
      - Get AI assistance while writing
      - Preview your content in real-time
 
@@ -70,6 +71,7 @@ A platform that allows educators to create AI-enhanced course websites with buil
 
 ## 🔮 Future Developments
 
-- **Customizable AI Assistants**: Allow teachers to fine-tune AI behavior and responses
-- **Enhanced RAG Capabilities**: Enable AI to interact with entire course material
-- **Advanced Document Editing**: Improved AI-assisted document creation and editing
+- **Customizable AI Assistants**: Allow teachers to adjust the student-facing AI behavior
+- **Enhanced RAG Capabilities**: Enable the AI to interact with the entire course material simultaneously
+- **Advanced Document Editing**: Improve the AI-assisted document creation and editing
+- **Community Courses**: Facilitate the sharing and exploring open-sourced courses

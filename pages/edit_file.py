@@ -1,10 +1,11 @@
 import streamlit as st
-from utils.aws import get_file_content, upload_content_file, update_section, delete_content_file
+from utils.aws import get_file_content, upload_content_file, update_section, delete_content_file, update_section_assistant
 from streamlit_pdf_viewer import pdf_viewer
 import tempfile
 import os
 from utils.logger import logger
 from utils.session import check_state
+from utils.assistants import get_assistant_options
 
 st.set_page_config(page_title="Edit Section", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
@@ -55,6 +56,24 @@ section_overview = st.text_area(
     label_visibility='collapsed'
 )
 
+# AI Assistant Selection
+st.markdown('##### AI Assistant')
+assistant_options = get_assistant_options(course_code)
+
+# Get current assistant if set
+current_assistant = st.session_state.get('assistant_id', "Default")
+if not any(a['id'] == current_assistant for a in assistant_options):
+    current_assistant = "Default"
+
+selected_assistant = st.selectbox(
+    "Select an AI assistant for this section",
+    options=[a['name'] for a in assistant_options],
+    index=[a['id'] for a in assistant_options].index(current_assistant),
+    help="Choose which AI assistant will help students with this section"
+)
+
+# Get the selected assistant ID
+selected_assistant_id = assistant_options[[a['name'] for a in assistant_options].index(selected_assistant)]['id']
 
 # File upload section
 st.markdown('### Change PDF File')
@@ -77,37 +96,46 @@ if st.button("Save Changes", type="primary", use_container_width=True):
             title=section_title,
             overview=section_overview
         ):
-            # If a new file was uploaded, handle the file update
-            if new_file:
-                # Delete old file
-                if file_path:
-                    # Extract filename from path
-                    old_file_name = file_path.split('/')[-1]
-                    delete_content_file(course_code, old_file_name)
-                
-                # Upload new file
-                new_file_path = upload_content_file(new_file, course_code, f"{section_id}.pdf")
-                if new_file_path:
-                    # Update section with new file path
-                    update_section(
-                        course_code=course_code,
-                        unit_id=unit_id,
-                        section_id=section_id,
-                        file_path=new_file_path
-                    )
-                    st.success("Section and file updated successfully!")
-                    st.session_state['template_content'] = ''
-                    st.switch_page('pages/edit_course.py')
+            # Update the assistant for this section
+            if update_section_assistant(
+                course_code=course_code,
+                unit_id=unit_id,
+                section_id=section_id,
+                assistant_id=selected_assistant_id
+            ):
+                # If a new file was uploaded, handle the file update
+                if new_file:
+                    # Delete old file
+                    if file_path:
+                        # Extract filename from path
+                        old_file_name = file_path.split('/')[-1]
+                        delete_content_file(course_code, old_file_name)
+                    
+                    # Upload new file
+                    new_file_path = upload_content_file(new_file, course_code, f"{section_id}.pdf")
+                    if new_file_path:
+                        # Update section with new file path
+                        update_section(
+                            course_code=course_code,
+                            unit_id=unit_id,
+                            section_id=section_id,
+                            file_path=new_file_path
+                        )
+                        st.success("Section, assistant, and file updated successfully!")
+                        st.session_state['template_content'] = ''
+                        st.switch_page('pages/edit_course.py')
+                    else:
+                        st.error("Failed to upload new file")
                 else:
-                    st.error("Failed to upload new file")
+                    st.success("Section and assistant updated successfully!")
+                    st.session_state['template_content'] = ''
             else:
-                st.success("Section details updated successfully!")
-                st.session_state['template_content'] = ''
+                st.error("Failed to update section assistant")
         else:
             st.error("Failed to update section")
     except Exception as e:
         logger.error(f"Error updating section: {str(e)}")
-        st.error(f"Error updating section: {str(e)}") 
+        st.error(f"Error updating section: {str(e)}")
 
 # Display current PDF
 st.markdown('### Current PDF')

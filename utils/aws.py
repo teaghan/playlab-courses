@@ -4,6 +4,8 @@ from botocore.exceptions import ClientError
 import re
 from utils.logger import logger
 import io
+from utils.config import open_config
+import uuid
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb')
@@ -770,4 +772,95 @@ def get_file_content(file_path):
         return response['Body'].read()
     except ClientError as e:
         logger.error(f"Error retrieving file content: {e}")
-        return None 
+        return None
+
+def create_custom_assistant(course_code, name, instructions):
+    """
+    Create a new custom AI assistant for a course
+    """
+    try:
+        # Generate a unique identifier for the assistant
+        assistant_id = str(uuid.uuid4())
+        course_table.put_item(
+            Item={
+                'PK': f'COURSE#{course_code}',
+                'SK': f'ASSISTANT#{assistant_id}',
+                'assistant_id': assistant_id,
+                'name': name,
+                'instructions': instructions,
+                'created_at': str(datetime.datetime.now())
+            }
+        )
+        return assistant_id
+    except Exception as e:
+        logger.error(f"Error creating custom assistant: {e}")
+        return None
+
+def get_custom_assistants(course_code):
+    """
+    Get all custom AI assistants for a course
+    """
+    try:
+        response = course_table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+            ExpressionAttributeValues={
+                ':pk': f'COURSE#{course_code}',
+                ':sk_prefix': 'ASSISTANT#'
+            }
+        )
+        return response.get('Items', [])
+    except Exception as e:
+        logger.error(f"Error getting custom assistants: {e}")
+        return []
+
+def delete_custom_assistant(course_code, assistant_id):
+    """
+    Delete a custom AI assistant from a course
+    """
+    try:
+        course_table.delete_item(
+            Key={
+                'PK': f'COURSE#{course_code}',
+                'SK': f'ASSISTANT#{assistant_id}'
+            }
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting custom assistant: {e}")
+        return False
+
+def update_section_assistant(course_code, unit_id, section_id, assistant_id):
+    """
+    Update the AI assistant for a section
+    """
+    try:
+        # Get the instructions based on the assistant ID
+        if assistant_id == "None":
+            instructions = None
+        elif assistant_id == "Default":
+            instructions = open_config()['playlab']['student_assistant_default_system_prompt']
+        else:
+            # Get instructions from custom assistant
+            custom_assistants = get_custom_assistants(course_code)
+            for assistant in custom_assistants:
+                if assistant['assistant_id'] == assistant_id:
+                    instructions = assistant['instructions']
+                    break
+            else:
+                # If custom assistant not found, fall back to default
+                instructions = open_config()['playlab']['student_assistant_default_system_prompt']
+
+        course_table.update_item(
+            Key={
+                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                'SK': f'SECTION#{section_id}'
+            },
+            UpdateExpression='SET assistant_id = :assistant_id',
+            ExpressionAttributeValues={
+                ':assistant_id': assistant_id
+            }
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error updating section assistant: {e}")
+        return False 

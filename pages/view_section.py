@@ -6,6 +6,7 @@ import os
 from utils.logger import logger
 from utils.session import check_state
 from utils.docx import markdownToWordFromString
+from utils.error_handling import catch_error
 
 try:
     st.set_page_config(page_title=f"{st.session_state['section_title']}", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
@@ -67,11 +68,14 @@ def download_dialog(section_type, section_title, content=None, file_path=None):
 if st.session_state['section_type'] == 'content':
     # Add download button
     if st.columns((3,1))[1].button("Download .docx", use_container_width=True, type="secondary"):
-        download_dialog(
-            section_type='content',
-            section_title=st.session_state['section_title'],
-            content=st.session_state['section_content']
-        )
+        try:
+            download_dialog(
+                section_type='content',
+                section_title=st.session_state['section_title'],
+                content=st.session_state['section_content']
+            )
+        except Exception as e:
+            catch_error()
     # Display markdown content
     st.markdown(st.session_state['section_content'], unsafe_allow_html=True)
     
@@ -89,11 +93,14 @@ elif st.session_state['section_type'] == 'file':
                 
                 # Add download button
                 if st.button("Download PDF", use_container_width=True, type="secondary"):
-                    download_dialog(
-                        section_type='file',
-                        section_title=st.session_state['section_title'],
-                        file_path=file_path
-                    )
+                    try:
+                        download_dialog(
+                            section_type='file',
+                            section_title=st.session_state['section_title'],
+                            file_path=file_path
+                        )
+                    except Exception as e:
+                        catch_error()
 
                 # Display PDF using the temporary file
                 pdf_viewer(tmp_path)
@@ -101,9 +108,8 @@ elif st.session_state['section_type'] == 'file':
                 # Clean up the temporary file
                 os.unlink(tmp_path)
             else:
-                st.error(f"Failed to retrieve PDF content.")
-                logger.error(f"Failed to retrieve PDF content for path: {file_path}")
+                catch_error()
         except Exception as e:
-            logger.error(f"Error displaying PDF: {str(e)}")
+            catch_error()
     else:
         st.error("No file path specified for this section") 

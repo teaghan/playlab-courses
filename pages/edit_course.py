@@ -1,11 +1,15 @@
 import streamlit as st
+from streamlit_lexical import streamlit_lexical
+
 from utils.session import check_state
 from utils.aws import get_course_details, create_unit, get_course_units, update_course, delete_unit, delete_section, update_unit_orders
 from utils.display_units import display_units
 from utils.reorder_items import create_sortable_list
 from utils.export import export_course
-from utils.config import domain_url
+from utils.config import domain_url, open_config
 from utils.clipboard import to_clipboard
+from utils.error_handling import catch_error
+from utils.assistants import display_assistant_management
 
 st.set_page_config(page_title="Edit Course", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
@@ -146,16 +150,19 @@ with st.expander("Edit Course Details"):
                         if update_unit_orders(course_code, unit_orders):
                             st.rerun()
                         else:
-                            st.error("Course details updated but failed to update unit order")
+                            catch_error()
                     else:
                         st.rerun()
                 else:
-                    st.error("Failed to update course details")
+                    catch_error()
             except Exception as e:
-                st.error(f"Error updating course: {str(e)}")
+                catch_error()
+
+# AI Assistant Management Section
+display_assistant_management(course_code)
 
 # Display units and sections
-st.markdown("## Course Content")
+st.markdown("## 📚 Course Content")
 display_units(course_code)
 
 # Add Unit Dialog
@@ -205,10 +212,13 @@ def delete_unit_confirm(unit_name, course_code, unit_id):
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Delete Unit", type="primary", use_container_width=True):
-            if delete_unit(course_code, unit_id):
-                st.rerun()
-            else:
-                st.session_state.delete_banner.error("Failed to delete unit")
+            try:
+                if delete_unit(course_code, unit_id):
+                    st.rerun()
+                else:
+                    catch_error()
+            except Exception as e:
+                catch_error()
     with col2:
         if st.button("Cancel", use_container_width=True):
             st.rerun()
@@ -224,10 +234,13 @@ def delete_section_confirm(section_name, course_code, unit_id, section_id):
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Delete Section", type="primary", use_container_width=True):
-            if delete_section(course_code, unit_id, section_id):
-                st.rerun()
-            else:
-                st.session_state.delete_banner.error("Failed to delete section")
+            try:
+                if delete_section(course_code, unit_id, section_id):
+                    st.rerun()
+                else:
+                    catch_error()
+            except Exception as e:
+                catch_error()
     with col2:
         if st.button("Cancel", use_container_width=True):
             st.rerun()

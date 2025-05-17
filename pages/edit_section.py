@@ -8,9 +8,11 @@ st.set_page_config(page_title="Edit Section",
 
 from utils.menu import menu
 from utils.session import check_state
-from utils.aws import update_section
+from utils.aws import update_section, update_section_assistant
 from utils.playlab import display_conversation
 from utils.config import open_config
+from utils.error_handling import catch_error
+from utils.assistants import get_assistant_options
 
 # Check user state
 check_state(check_user=True)
@@ -52,6 +54,25 @@ section_overview = st.text_area(
     label_visibility='collapsed'
 )
 
+# AI Assistant Selection
+st.markdown('##### AI Assistant')
+assistant_options = get_assistant_options(st.session_state['course_code'])
+
+# Get current assistant if set
+current_assistant = st.session_state.get('assistant_id', "Default")
+if not any(a['id'] == current_assistant for a in assistant_options):
+    current_assistant = "Default"
+
+selected_assistant = st.selectbox(
+    "Select an AI assistant for this section",
+    options=[a['name'] for a in assistant_options],
+    index=[a['id'] for a in assistant_options].index(current_assistant),
+    help="Choose which AI assistant will help students with this section"
+)
+
+# Get the selected assistant ID
+selected_assistant_id = assistant_options[[a['name'] for a in assistant_options].index(selected_assistant)]['id']
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -83,12 +104,20 @@ if st.button("Save Section", type="primary", use_container_width=True):
             overview=st.session_state['section_overview'],
             content=st.session_state['editor_content']
         ):
-            st.success("Section updated successfully!")
-            #st.switch_page('pages/edit_course.py')
+            # Update the assistant for this section
+            if update_section_assistant(
+                course_code=st.session_state['course_code'],
+                unit_id=st.session_state['unit_id'],
+                section_id=st.session_state['section_id'],
+                assistant_id=selected_assistant_id
+            ):
+                st.success("Section updated successfully!")
+            else:
+                catch_error()
         else:
-            st.error("Failed to update section")
+            catch_error()
     except Exception as e:
-        st.error(f"Error updating section: {str(e)}")
+        catch_error()
 
 st.markdown('### Preview:')
 with st.container(height=750):

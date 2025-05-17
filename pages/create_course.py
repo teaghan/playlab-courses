@@ -3,6 +3,7 @@ import streamlit as st
 from utils.session import check_state
 from utils.config import domain_url
 from utils.aws import create_course, validate_course_code
+from utils.error_handling import catch_error
 
 st.set_page_config(page_title="Create Course", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
@@ -110,4 +111,4 @@ with st.form("course_form"):
                 # Redirect to course page or dashboard
                 st.switch_page("pages/dashboard.py") 
             except Exception as e:
-                st.error(f"Error creating course: {str(e)}") 
+                catch_error() 

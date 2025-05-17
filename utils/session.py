@@ -6,7 +6,6 @@ from utils.check_window import on_mobile
 def user_reset():
     st.session_state.authentication_status = None
     st.session_state.user_email = None
-    st.session_state.access_code = None
 
 def check_state(check_user=False, reset_chat=False, 
                 reset_teacher=True, reset_course=False):

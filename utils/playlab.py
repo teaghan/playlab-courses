@@ -98,6 +98,7 @@ def message_fn(message, role='student', section_title='', section_type='content'
             "unit_title": "{st.session_state.get('unit_title', '')}",
             "module_title": "{section_title}",
             "content": "{st.session_state.get("section_content", "")}",
+            "teacher_instructions": "{st.session_state.get('assistant_instructions', '')}"
             }}'''
 
 def response_fn(response, role='student'):
