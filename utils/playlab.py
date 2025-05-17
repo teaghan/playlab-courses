@@ -86,20 +86,30 @@ def message_fn(message, role='student', section_title='', section_type='content'
         "template_content": "{st.session_state.get("template_content", "")}"
     }}'''
     elif role == 'student':
-        if len(st.session_state.messages) > 2 or section_type == 'file':
+        if len(st.session_state.messages) > 2:
             return f'''{{
             "message": "{message}"
             }}'''
         else:
-            return f'''{{
-            "message": "{message}",
-            "student_grade": "{st.session_state.get('grade_level', '')}",
-            "course_name": "{st.session_state.get('course_name', '')}",
-            "unit_title": "{st.session_state.get('unit_title', '')}",
-            "module_title": "{section_title}",
-            "content": "{st.session_state.get("section_content", "")}",
-            "teacher_instructions": "{st.session_state.get('assistant_instructions', '')}"
-            }}'''
+            if section_type == 'file':
+                return f'''{{
+                "message": "{message}",
+                "student_grade": "{st.session_state.get('grade_level', '')}",
+                "course_name": "{st.session_state.get('course_name', '')}",
+                "unit_title": "{st.session_state.get('unit_title', '')}",
+                "module_title": "{section_title}",
+                "teacher_instructions": "{st.session_state.get('assistant_instructions', '')}"
+                }}'''
+            else:
+                return f'''{{
+                "message": "{message}",
+                "student_grade": "{st.session_state.get('grade_level', '')}",
+                "course_name": "{st.session_state.get('course_name', '')}",
+                "unit_title": "{st.session_state.get('unit_title', '')}",
+                "module_title": "{section_title}",
+                "content": "{st.session_state.get("section_content", "")}",
+                "teacher_instructions": "{st.session_state.get('assistant_instructions', '')}"
+                }}'''
 
 def response_fn(response, role='student'):
     if role == 'teacher':
@@ -335,6 +345,8 @@ def display_conversation(project_id, user='student', section_title='', section_t
 
         if section_type == 'file' and len(st.session_state.messages) < 2:
             first_message = "Here is the file I am looking at, please let me know when you are ready to start."
+            first_message = message_fn(first_message, user, section_title, section_type)
+            logger.info(f'DEFAULT FIRST MESSAGE:\n\n{first_message}\n\n')
             with st.session_state.chat_spinner, st.spinner(f"Reading the PDF..."):
                 # Load pdf to temporary file
                 try:
