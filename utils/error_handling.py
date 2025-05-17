@@ -16,6 +16,7 @@ def catch_error():
     # Get the full error traceback including the exception chain
     exc_type, exc_value, exc_traceback = sys.exc_info()
     error_traceback = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    logger.error(f"Error traceback: {error_traceback}")
     
     # Send error notification email
     try:

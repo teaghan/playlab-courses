@@ -71,7 +71,6 @@ A platform that allows educators to create AI-enhanced course websites with buil
 
 ## 🔮 Future Developments
 
-- **Customizable AI Assistants**: Allow teachers to adjust the student-facing AI behavior
 - **Enhanced RAG Capabilities**: Enable the AI to interact with the entire course material simultaneously
 - **Advanced Document Editing**: Improve the AI-assisted document creation and editing
 - **Community Courses**: Facilitate the sharing and exploring open-sourced courses
