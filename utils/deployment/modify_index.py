@@ -4,10 +4,10 @@ from utils.core.config import domain_url
 from utils.core.logger import logger
 
 def modify_index():
-    app_title = "Playlab Courses"
+    app_title = "OpenCource"
     app_url = domain_url()
     app_description = "Teachers building AI-powered course materials."
-    app_image = "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png"
+    app_image = "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png"
 
     # Locate the streamlit package's static folder and index.html
     st_dir = os.path.dirname(st.__file__)

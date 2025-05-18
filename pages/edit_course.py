@@ -11,7 +11,7 @@ from utils.data.session_manager import SessionManager as sm
 
 st.set_page_config(
     page_title="Edit Course", 
-    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", 
     layout="wide", 
     initial_sidebar_state='collapsed'
 )

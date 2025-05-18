@@ -28,11 +28,11 @@ def send_access_code(access_code, user_email):
     """
     sender = open_config()['email']['email']
     sender_password = os.environ['EMAIL_PASSWORD']
-    subject = 'Playlab Courses: Your Access Code'
+    subject = 'OpenCource: Your Access Code'
     
     body = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #2c3e50;">Welcome to Playlab Courses! 👋</h2>
+        <h2 style="color: #2c3e50;">Welcome to OpenCource! 👋</h2>
         
         <p style="color: #34495e; font-size: 16px; line-height: 1.5;">
             Your access code is: <strong style="font-size: 24px; color: #2c3e50;">{access_code}</strong>
@@ -44,12 +44,12 @@ def send_access_code(access_code, user_email):
         
         <div style="margin-top: 30px; color: #7f8c8d; border-top: 1px solid #eee; padding-top: 20px;">
             <p style="margin: 0;">Best regards,</p>
-            <p style="margin: 5px 0;">Playlab Courses Team 🎓</p>
+            <p style="margin: 5px 0;">OpenCource Team 🎓</p>
         </div>
     </div>
     """
     
-    send_email(subject, body, sender, sender_password, user_email, sender_name='Playlab Courses', html=True)
+    send_email(subject, body, sender, sender_password, user_email, sender_name='OpenCource', html=True)
 
 def send_error_email(traceback, session_state):
     """
@@ -63,7 +63,7 @@ def send_error_email(traceback, session_state):
     recipient = open_config()['email']['email']
     sender_password = os.environ['EMAIL_PASSWORD']
     
-    subject = 'P-C: Error Notification 🚨'
+    subject = 'OpenCource: Error Notification 🚨'
     
     # Format session state for better readability
     session_state_str = '\n'.join([f"{k}: {v}" for k, v in session_state.items()])
@@ -88,19 +88,19 @@ def send_error_email(traceback, session_state):
         
         <div style="margin-top: 30px; color: #7f8c8d; border-top: 1px solid #eee; padding-top: 20px;">
             <p style="margin: 0;">This is an automated error notification.</p>
-            <p style="margin: 5px 0;">Playlab Courses System 🎓</p>
+            <p style="margin: 5px 0;">OpenCource System 🎓</p>
         </div>
     </div>
     """
     
-    send_email(subject, body, sender, sender_password, recipient, sender_name='Playlab Courses System', html=True)
+    send_email(subject, body, sender, sender_password, recipient, sender_name='OpenCource System', html=True)
 
 def send_email_support(user_email, message):
     sender = open_config()['email']['email']
     recipient = open_config()['email']['email']
     sender_password = os.environ['EMAIL_PASSWORD']
 
-    subject = 'Playlab Courses: User Support'
+    subject = 'OpenCource: User Support'
     #message = message.replace('\n', '<br>')
     body = 'User: ' + user_email + '\n\n' + message
     send_email(subject, body, sender, sender_password, recipient)

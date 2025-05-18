@@ -5,7 +5,7 @@ from utils.core.error_handling import catch_error
 
 st.set_page_config(
     page_title="Enter Course Code",
-    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png",
+    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png",
     layout="wide"
 )
 

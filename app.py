@@ -1,8 +1,9 @@
 import streamlit as st
 
 # Page info
-st.set_page_config(page_title="Playlab Courses", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", layout="wide")
+st.set_page_config(page_title="OpenCource", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", layout="wide")
 
+from utils.core.config import open_config
 from utils.data.session_manager import SessionManager as sm
 
 # If necessary, load tutor data, user data, styling, memory manager, etc.
@@ -30,7 +31,9 @@ if course_code:
     else:
         st.switch_page("pages/view_course.py")
 
-st.markdown("<h1 style='text-align: center; color: grey;'>Playlab Courses</h1>", unsafe_allow_html=True)
+# Display logo
+col1, col2, col3 = st.columns((1,1,1))
+col2.image(open_config()['images']['logo_full'], use_container_width=True)
 
 st.markdown("----")
 

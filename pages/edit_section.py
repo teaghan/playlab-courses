@@ -3,7 +3,7 @@ from streamlit_lexical import streamlit_lexical
 
 # Page configuration
 st.set_page_config(page_title="Edit Section", 
-                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", 
                    layout="wide", initial_sidebar_state='collapsed')
 
 from utils.frontend.menu import menu

@@ -15,7 +15,7 @@ try:
     # Set page config
     st.set_page_config(
         page_title=st.session_state.course_name,
-        page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png",
+        page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png",
         layout="wide"
     )
 
