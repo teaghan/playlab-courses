@@ -282,6 +282,7 @@ def add_section_dialog(course_code: str, unit_id: str):
                         "editor_content": '',
                         "update_editor": True
                     })
+                    sm.initialize_section(unit_id, section_id)
                     st.session_state.add_section_step = 1
                     st.session_state.new_section_name = None
                     st.session_state.new_section_overview = None

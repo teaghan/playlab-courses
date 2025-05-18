@@ -92,7 +92,6 @@ def display_courses(allow_edit=False, allow_copy=False):
         with st.container():
             st.markdown(f"### **{course.get('name')}**")
             st.markdown(f"*{course_code}*")
-            st.markdown(course.get("description"))
             
             # Create columns for buttons
             col1, col2, col3, col4 = st.columns(4)
