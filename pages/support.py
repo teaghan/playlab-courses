@@ -1,8 +1,8 @@
 import streamlit as st
-from utils.menu import menu
-from utils.session import check_state
-from utils.emailing import send_email_support
-from utils.error_handling import catch_error
+from utils.frontend.menu import menu
+from utils.data.user_manager import check_state
+from utils.core.emailing import send_email_support
+from utils.core.error_handling import catch_error
 
 # Streamlit page configuration
 st.set_page_config(

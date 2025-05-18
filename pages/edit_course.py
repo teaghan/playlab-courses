@@ -1,52 +1,45 @@
 import streamlit as st
-from streamlit_lexical import streamlit_lexical
+from utils.data.aws import update_course, update_unit_orders
+from utils.frontend.display_units import display_units
+from utils.frontend.reorder_items import create_sortable_list
+from utils.documents.export import export_course
+from utils.core.config import domain_url
+from utils.frontend.clipboard import to_clipboard
+from utils.core.error_handling import catch_error
+from utils.frontend.assistants import display_assistant_management
+from utils.data.session_manager import SessionManager as sm
 
-from utils.session import check_state
-from utils.aws import get_course_details, create_unit, get_course_units, update_course, delete_unit, delete_section, update_unit_orders
-from utils.display_units import display_units
-from utils.reorder_items import create_sortable_list
-from utils.export import export_course
-from utils.config import domain_url, open_config
-from utils.clipboard import to_clipboard
-from utils.error_handling import catch_error
-from utils.assistants import display_assistant_management
-
-st.set_page_config(page_title="Edit Course", 
-                   page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
-                   layout="wide", initial_sidebar_state='collapsed')
+st.set_page_config(
+    page_title="Edit Course", 
+    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
+    layout="wide", 
+    initial_sidebar_state='collapsed'
+)
 
 # Check user state
-check_state(check_user=True)
+sm.check_state(check_user=True)
 
 # Display page buttons
-from utils.menu import menu
+from utils.frontend.menu import menu
 menu()
 
 # Get course code from session state
 course_code = st.session_state.get("course_code")
-
-# Get course details
-course_details = get_course_details(course_code)
-if not course_details:
-    st.error("Course not found")
+if not course_code:
+    st.error("No course selected")
     st.switch_page("app.py")
 
-# Get course metadata
-metadata = next((item for item in course_details if item["SK"] == "METADATA"), None)
-if not metadata:
-    st.error("Course metadata not found")
-    st.switch_page("app.py")
-
-# Store course metadata in session state if not already present
-if "course_name" not in st.session_state:
-    st.session_state.course_name = metadata.get('name', '')
-if "course_description" not in st.session_state:
-    st.session_state.course_description = metadata.get('description', '')
-if "grade_level" not in st.session_state:
-    st.session_state.grade_level = metadata.get('grade_level', 6)
+# Initialize course data
+try:
+    if not sm.initialize_course(course_code):
+        st.error("Course not found")
+        st.switch_page("app.py")
+except:
+    catch_error()
 
 # Display course header
-st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.course_name}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.course_name}</h1>", 
+            unsafe_allow_html=True)
 
 # Add Unit Dialog
 @st.dialog("Export Course Files")
@@ -80,7 +73,7 @@ with col2:
         export_dialog()
 
 # Course Details Section
-st.markdown(st.session_state.course_description)
+st.markdown(st.session_state.course_description, unsafe_allow_html=True)
 
 # Course editing expander
 with st.expander("Edit Course Details"):
@@ -111,13 +104,12 @@ with st.expander("Edit Course Details"):
     
     # Unit Reordering
     st.markdown('#### Reorder Units')
-    units = get_course_units(course_code)
-    if units:
+    if st.session_state.course_units:
         # Sort units by order
-        units.sort(key=lambda x: x.get('order', 0))
+        sorted_units = sorted(st.session_state.course_units, key=lambda x: x.order)
         
         # Create a list of unit titles for sorting
-        unit_items = [unit.get('title') for unit in units]
+        unit_items = [unit.title for unit in sorted_units]
         
         # Add the sortable list
         with st.columns((1,1))[0]:
@@ -142,105 +134,31 @@ with st.expander("Edit Course Details"):
                     # If unit order has changed, update it
                     if 'sorted_unit_items' in st.session_state and st.session_state.sorted_unit_items != unit_items:
                         # Create a mapping of unit titles to their IDs
-                        title_to_id = {unit.get('title'): unit.get('SK').replace('UNIT#', '') for unit in units}
+                        title_to_id = {unit.title: unit.id for unit in sorted_units}
                         
                         # Create list of (unit_id, new_order) tuples
                         unit_orders = [(title_to_id[title], i+1) for i, title in enumerate(st.session_state.sorted_unit_items)]
                         
                         if update_unit_orders(course_code, unit_orders):
+                            st.session_state.course_updated = True
                             st.rerun()
                         else:
                             catch_error()
                     else:
+                        st.session_state.course_updated = True
                         st.rerun()
                 else:
                     catch_error()
             except Exception as e:
                 catch_error()
-
+        if st.session_state.get('course_updated', False):
+            st.success("Course updated successfully")
+            st.session_state.course_updated = False
+st.markdown('---')
 # AI Assistant Management Section
 display_assistant_management(course_code)
-
+st.markdown('---') 
 # Display units and sections
 st.markdown("## 📚 Course Content")
+st.markdown('---')
 display_units(course_code)
-
-# Add Unit Dialog
-@st.dialog("Add Unit")
-def add_unit_dialog():
-    st.markdown("### Add New Unit")
-    unit_name = st.text_input("Unit Name", placeholder="e.g. Introduction to Astronomy")
-    unit_description = st.text_area("Unit Description", placeholder="Describe what this unit covers...", height=100)
-    st.session_state.add_unit_banner = st.empty()
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Add Unit", type="primary", use_container_width=True, key='add_unit'):
-            if unit_name:
-                # Get the next order number
-                units = get_course_units(course_code)
-                next_order = len(units) + 1
-                
-                # Create the unit using order as ID
-                create_unit(
-                    course_code=course_code,
-                    unit_id=str(next_order),
-                    title=unit_name,
-                    description=unit_description,
-                    order=next_order
-                )
-                st.rerun()
-            else:
-                st.session_state.add_unit_banner.error("Please enter a unit name")
-    with col2:
-        if st.button("Cancel", use_container_width=True):
-            st.rerun()
-
-with st.columns((1,2,1))[1]:
-    # Add Unit button
-    if st.button("Add Unit", type="primary", use_container_width=True):
-        add_unit_dialog()
-
-# Delete Unit Dialog
-@st.dialog("Delete Unit")
-def delete_unit_confirm(unit_name, course_code, unit_id):
-    """
-    Show confirmation dialog for unit deletion
-    """
-    st.markdown(f'Are you sure you want to delete the unit, "*{unit_name}*"?')
-    st.warning("This will also delete all sections in this unit.")
-    st.session_state.delete_banner = st.empty()
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Delete Unit", type="primary", use_container_width=True):
-            try:
-                if delete_unit(course_code, unit_id):
-                    st.rerun()
-                else:
-                    catch_error()
-            except Exception as e:
-                catch_error()
-    with col2:
-        if st.button("Cancel", use_container_width=True):
-            st.rerun()
-
-# Delete Section Dialog
-@st.dialog("Delete Section")
-def delete_section_confirm(section_name, course_code, unit_id, section_id):
-    """
-    Show confirmation dialog for section deletion
-    """
-    st.markdown(f'Are you sure you want to delete the section, "*{section_name}*"?')
-    st.session_state.delete_banner = st.empty()
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Delete Section", type="primary", use_container_width=True):
-            try:
-                if delete_section(course_code, unit_id, section_id):
-                    st.rerun()
-                else:
-                    catch_error()
-            except Exception as e:
-                catch_error()
-    with col2:
-        if st.button("Cancel", use_container_width=True):
-            st.rerun()

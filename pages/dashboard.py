@@ -1,17 +1,16 @@
 import streamlit as st
-from utils.session import check_state
-from utils.display_courses import display_courses
+from utils.data.session_manager import SessionManager as sm
+from utils.frontend.display_courses import display_courses
 
 # Streamlit info
 st.set_page_config(page_title='Dashboard', 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
                    layout="wide", initial_sidebar_state='collapsed')
 
-# If necessary, load tutor data, user data, etc.
-check_state(check_user=True, reset_course=True)
+sm.check_state(check_user=True)
 
 # Display page buttons
-from utils.menu import menu
+from utils.frontend.menu import menu
 menu()
 
 st.markdown("## My Courses")

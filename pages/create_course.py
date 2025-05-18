@@ -1,9 +1,9 @@
 import streamlit as st
 
-from utils.session import check_state
-from utils.config import domain_url
-from utils.aws import create_course, validate_course_code
-from utils.error_handling import catch_error
+from utils.data.user_manager import check_state
+from utils.core.config import domain_url
+from utils.data.aws import create_course, validate_course_code
+from utils.core.error_handling import catch_error
 
 st.set_page_config(page_title="Create Course", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
@@ -13,7 +13,7 @@ st.set_page_config(page_title="Create Course",
 check_state(check_user=True)
 
 # Display page buttons
-from utils.menu import menu
+from utils.frontend.menu import menu
 menu()
 
 st.markdown("<h1 style='text-align: center; color: grey;'>Create a New Course</h1>", unsafe_allow_html=True)

@@ -1,6 +1,6 @@
 import streamlit as st
-from utils.session import check_state
-from utils.aws import get_course_details
+from utils.data.session_manager import SessionManager as sm
+from utils.data.aws import get_course_details
 
 st.set_page_config(
     page_title="Enter Course Code",
@@ -9,8 +9,7 @@ st.set_page_config(
 )
 
 # Check user state
-check_state(check_user=False)
-
+sm.check_state(check_user=False)
 
 # Center the content
 st.markdown("<h1 style='text-align: center; color: grey;'>Enter Course Code</h1>", unsafe_allow_html=True)

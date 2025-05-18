@@ -6,16 +6,16 @@ st.set_page_config(page_title="Edit Section",
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
                    layout="wide", initial_sidebar_state='collapsed')
 
-from utils.menu import menu
-from utils.session import check_state
-from utils.aws import update_section, update_section_assistant
-from utils.playlab import display_conversation
-from utils.config import open_config
-from utils.error_handling import catch_error
-from utils.assistants import get_assistant_options
+from utils.frontend.menu import menu
+from utils.data.session_manager import SessionManager as sm
+from utils.data.aws import update_section, update_section_assistant
+from utils.frontend.playlab import display_conversation
+from utils.core.config import open_config
+from utils.core.error_handling import catch_error
+from utils.frontend.assistants import display_assistant_selection
 
 # Check user state
-check_state(check_user=True)
+sm.check_state(check_user=True)
 
 # Display page buttons
 menu()
@@ -33,8 +33,13 @@ def on_change_editor():
     else:
         st.session_state['editor_initialized'] = True
 
+# Get section details from session state
+course_code = st.session_state.get("course_code")
+section = st.session_state.get("section")
+unit_id = section.unit_id
+
 # Display section title
-st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state['section_title']}</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color: grey;'>{section.title}</h1>", unsafe_allow_html=True)
 
 if st.columns((1, 3))[0].button('Return to Course Editor', use_container_width=True, type='primary'):
     st.switch_page('pages/edit_course.py')
@@ -43,35 +48,53 @@ if st.columns((1, 3))[0].button('Return to Course Editor', use_container_width=T
 st.markdown('##### Section Title')
 section_title = st.text_input(
     "Title",
-    value=st.session_state['section_title'],
+    value=section.title,
     label_visibility='collapsed'
 )
+
 st.markdown('##### Section Overview')
 section_overview = st.text_area(
     "Overview",
-    value=st.session_state['section_overview'],
+    value=section.overview,
     height=100,
     label_visibility='collapsed'
 )
 
 # AI Assistant Selection
-st.markdown('##### AI Assistant')
-assistant_options = get_assistant_options(st.session_state['course_code'])
+selected_assistant_id = display_assistant_selection(course_code, section)
 
-# Get current assistant if set
-current_assistant = st.session_state.get('assistant_id', "Default")
-if not any(a['id'] == current_assistant for a in assistant_options):
-    current_assistant = "Default"
 
-selected_assistant = st.selectbox(
-    "Select an AI assistant for this section",
-    options=[a['name'] for a in assistant_options],
-    index=[a['id'] for a in assistant_options].index(current_assistant),
-    help="Choose which AI assistant will help students with this section"
-)
+# Save button
+if st.button("Save Section", type="primary", use_container_width=True):
+    try:
+        
+        if update_section(
+            course_code=course_code,
+            unit_id=unit_id,
+            section_id=section.id,
+            title=section_title,
+            overview=section_overview,
+            content=st.session_state.get('editor_content')
+        ):
+            # Update the assistant for this section
+            if update_section_assistant(
+                course_code=course_code,
+                unit_id=unit_id,
+                section_id=section.id,
+                assistant_id=selected_assistant_id
+            ):
+                st.session_state.section_updated = True
+                st.rerun()
+            else:
+                catch_error()
+        else:
+            catch_error()
+    except Exception as e:
+        catch_error()
 
-# Get the selected assistant ID
-selected_assistant_id = assistant_options[[a['name'] for a in assistant_options].index(selected_assistant)]['id']
+if st.session_state.get('section_updated', False):
+    st.success("Section updated successfully!")
+    st.session_state.section_updated = False
 
 col1, col2 = st.columns([1, 1])
 
@@ -93,32 +116,7 @@ with col2:
         on_change=on_change_editor
     )
 
-# Save button
-if st.button("Save Section", type="primary", use_container_width=True):
-    try:
-        if update_section(
-            course_code=st.session_state['course_code'],
-            unit_id=st.session_state['unit_id'],
-            section_id=st.session_state['section_id'],
-            title=st.session_state['section_title'],
-            overview=st.session_state['section_overview'],
-            content=st.session_state['editor_content']
-        ):
-            # Update the assistant for this section
-            if update_section_assistant(
-                course_code=st.session_state['course_code'],
-                unit_id=st.session_state['unit_id'],
-                section_id=st.session_state['section_id'],
-                assistant_id=selected_assistant_id
-            ):
-                st.success("Section updated successfully!")
-            else:
-                catch_error()
-        else:
-            catch_error()
-    except Exception as e:
-        catch_error()
 
 st.markdown('### Preview:')
 with st.container(height=750):
-    st.markdown(st.session_state['editor_content'], unsafe_allow_html=True)
+    st.markdown(st.session_state.get('editor_content'), unsafe_allow_html=True)
