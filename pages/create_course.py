@@ -1,16 +1,16 @@
 import streamlit as st
 
-from utils.data.user_manager import check_state
 from utils.core.config import domain_url
 from utils.data.aws import create_course, validate_course_code
 from utils.core.error_handling import catch_error
+from utils.data.session_manager import SessionManager as sm
 
 st.set_page_config(page_title="Create Course", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/Playlab_Icon.png", 
                    layout="wide", initial_sidebar_state='collapsed')
 
 # Check user state
-check_state(check_user=True)
+sm.initialize_user(st.session_state.user_email)
 
 # Display page buttons
 from utils.frontend.menu import menu
@@ -109,6 +109,7 @@ with st.form("course_form"):
                 
                 st.success("Course created successfully!")
                 # Redirect to course page or dashboard
+                sm.initialize_user(st.session_state.user_email)
                 st.switch_page("pages/dashboard.py") 
             except Exception as e:
                 catch_error() 

@@ -28,6 +28,7 @@ def delete_course_confirm(course_name, course_code):
             user_email = st.session_state.get("user_email")
             if delete_course(user_email, course_code):
                 st.success("Course deleted successfully!")
+                sm.initialize_user(st.session_state.user_email)
                 st.rerun()
             else:
                 st.error("Failed to delete course")
@@ -66,6 +67,7 @@ def copy_course(course_code, course):
                     # Copy all units and sections
                     if copy_course_contents(course_code, new_course_code):
                         st.session_state.copy_banner.success("Course copied successfully!")
+                        sm.initialize_user(st.session_state.user_email)
                         st.rerun()
                     else:
                         st.session_state.copy_banner.error("Failed to copy course contents")

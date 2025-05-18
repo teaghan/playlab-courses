@@ -280,28 +280,29 @@ def get_unit_sections(course_code, unit_id):
 
 def delete_section(course_code, unit_id, section_id):
     """
-    Delete a section from a unit
+    Delete a single section from a unit
     """
     try:
-        # Get the section to check if it's a file-based section
+        # Get section details first
         response = course_table.get_item(
             Key={
                 'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
                 'SK': f'SECTION#{section_id}'
             }
         )
-        section = response.get('Item')
+        section = response.get('Item', {})
+        if not section:
+            return False
+            
+        deleted_order = section.get('order', 0)
         
-        if section and section.get('section_type') == 'file' and section.get('file_path'):
-            # Delete the file from S3
-            try:
-                s3.delete_object(
-                    Bucket=bucket_name,
-                    Key=section['file_path']
-                )
-                st.cache_data.clear()
-            except ClientError as e:
-                logger.error(f"Error deleting S3 file: {e}")
+        # If it's a file-based section, delete the file from S3
+        if section.get('section_type') == 'file':
+            file_path = section.get('file_path')
+            if file_path:
+                # Extract filename from path
+                file_name = file_path.split('/')[-1]
+                delete_content_file(course_code, file_name)
         
         # Delete the section from DynamoDB
         course_table.delete_item(
@@ -310,6 +311,21 @@ def delete_section(course_code, unit_id, section_id):
                 'SK': f'SECTION#{section_id}'
             }
         )
+        
+        # Get all remaining sections
+        remaining_sections = get_unit_sections(course_code, unit_id)
+        
+        # Update orders of remaining sections
+        section_orders = []
+        for section in remaining_sections:
+            current_order = section.get('order', 0)
+            if current_order > deleted_order:
+                section_id = section['SK'].replace('SECTION#', '')
+                section_orders.append((section_id, current_order - 1))
+        
+        if section_orders:
+            update_section_orders(course_code, unit_id, section_orders)
+            
         st.cache_data.clear()
         return True
     except Exception as e:
@@ -370,18 +386,25 @@ def update_section_orders(course_code, unit_id, section_orders):
     Args:
         course_code: The course code
         unit_id: The unit ID
-        section_orders: List of (section_id, new_order) tuples
+        section_orders: List of tuples (section_id, new_order)
+    Returns:
+        bool: True if successful, False otherwise
     """
     try:
-        with course_table.batch_writer() as batch:
-            for section_id, new_order in section_orders:
-                batch.put_item(
-                    Item={
-                        'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                        'SK': f'SECTION#{section_id}',
-                        'order': new_order
-                    }
-                )
+        for section_id, new_order in section_orders:
+            course_table.update_item(
+                Key={
+                    'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
+                    'SK': f'SECTION#{section_id}'
+                },
+                UpdateExpression='SET #order = :order',
+                ExpressionAttributeNames={
+                    '#order': 'order'
+                },
+                ExpressionAttributeValues={
+                    ':order': new_order
+                }
+            )
         st.cache_data.clear()
         return True
     except Exception as e:
@@ -474,6 +497,19 @@ def delete_unit(course_code, unit_id):
         for section in sections:
             delete_section(course_code, unit_id, section['SK'].replace('SECTION#', ''))
         
+        # Get the unit to be deleted to know its order
+        response = course_table.get_item(
+            Key={
+                'PK': f'COURSE#{course_code}',
+                'SK': f'UNIT#{unit_id}'
+            }
+        )
+        deleted_unit = response.get('Item')
+        if not deleted_unit:
+            return False
+            
+        deleted_order = deleted_unit.get('order', 0)
+        
         # Delete the unit itself
         course_table.delete_item(
             Key={
@@ -481,137 +517,25 @@ def delete_unit(course_code, unit_id):
                 'SK': f'UNIT#{unit_id}'
             }
         )
+        
+        # Get all remaining units
+        remaining_units = get_course_units(course_code)
+        
+        # Update orders of remaining units
+        unit_orders = []
+        for unit in remaining_units:
+            current_order = unit.get('order', 0)
+            if current_order > deleted_order:
+                unit_id = unit['SK'].replace('UNIT#', '')
+                unit_orders.append((unit_id, current_order - 1))
+        
+        if unit_orders:
+            update_unit_orders(course_code, unit_orders)
+            
         st.cache_data.clear()
         return True
     except Exception as e:
         logger.error(f"Error deleting unit: {e}")
-        return False
-
-def delete_section(course_code, unit_id, section_id):
-    """
-    Delete a single section from a unit
-    """
-    try:
-        # Get section details first
-        response = course_table.get_item(
-            Key={
-                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                'SK': f'SECTION#{section_id}'
-            }
-        )
-        section = response.get('Item', {})
-        
-        # If it's a file-based section, delete the file from S3
-        if section.get('section_type') == 'file':
-            file_path = section.get('file_path')
-            if file_path:
-                # Extract filename from path
-                file_name = file_path.split('/')[-1]
-                delete_content_file(course_code, file_name)
-        
-        # Delete the section from DynamoDB
-        course_table.delete_item(
-            Key={
-                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                'SK': f'SECTION#{section_id}'
-            }
-        )
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        logger.error(f"Error deleting section: {e}")
-        return False
-
-def update_section(course_code, unit_id, section_id, title=None, overview=None, content=None, section_type=None, file_path=None):
-    """
-    Update a section's details
-    Args:
-        course_code: The course code
-        unit_id: The unit ID
-        section_id: The section ID
-        title: Optional section title
-        overview: Optional section overview
-        content: Optional section content as a string (markdown)
-        section_type: Optional section type ("file" or "content")
-        file_path: Optional S3 file path for file-based sections
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Get current section details
-        response = course_table.get_item(
-            Key={
-                'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                'SK': f'SECTION#{section_id}'
-            }
-        )
-        current_section = response.get('Item', {})
-        
-        # Build update expression and values
-        update_parts = []
-        expr_values = {}
-        
-        # Add title update if provided
-        if title is not None:
-            update_parts.append('title = :title')
-            expr_values[':title'] = title
-        else:
-            title = current_section.get('title', '')
-        
-        # Add overview update if provided
-        if overview is not None:
-            update_parts.append('overview = :overview')
-            expr_values[':overview'] = overview
-        else:
-            overview = current_section.get('overview', '')
-        
-        # Add section type update if provided
-        if section_type is not None:
-            update_parts.append('section_type = :section_type')
-            expr_values[':section_type'] = section_type
-            
-            # If changing to file type, update file path
-            if section_type == "file" and file_path:
-                update_parts.append('file_path = :file_path')
-                expr_values[':file_path'] = file_path
-                # Remove content if it exists
-                update_parts.append('content = :empty')
-                expr_values[':empty'] = None
-            # If changing to content type, update content
-            elif section_type == "content" and content:
-                update_parts.append('content = :content')
-                expr_values[':content'] = content
-                # Remove file path if it exists
-                update_parts.append('file_path = :empty')
-                expr_values[':empty'] = None
-        
-        # Add content update if provided (only for content-type sections)
-        elif content is not None and current_section.get('section_type') == "content":
-            update_parts.append('content = :content')
-            expr_values[':content'] = content
-        
-        # Add file path update if provided (only for file-type sections)
-        elif file_path is not None and current_section.get('section_type') == "file":
-            update_parts.append('file_path = :file_path')
-            expr_values[':file_path'] = file_path
-        
-        # Only update if there are changes
-        if update_parts:
-            update_expr = 'SET ' + ', '.join(update_parts)
-            
-            # Update the section
-            course_table.update_item(
-                Key={
-                    'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                    'SK': f'SECTION#{section_id}'
-                },
-                UpdateExpression=update_expr,
-                ExpressionAttributeValues=expr_values
-            )
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        logger.error(f"Error updating section: {e}")
         return False
 
 def update_unit_orders(course_code, unit_orders):
@@ -737,37 +661,6 @@ def copy_course_contents(source_course_code, target_course_code):
         return True
     except Exception as e:
         logger.error(f"Error copying course contents: {e}")
-        return False
-
-def update_section_orders(course_code, unit_id, section_orders):
-    """
-    Update the order of multiple sections within a unit
-    Args:
-        course_code: The course code
-        unit_id: The unit ID
-        section_orders: List of tuples (section_id, new_order)
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        for section_id, new_order in section_orders:
-            course_table.update_item(
-                Key={
-                    'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
-                    'SK': f'SECTION#{section_id}'
-                },
-                UpdateExpression='SET #order = :order',
-                ExpressionAttributeNames={
-                    '#order': 'order'
-                },
-                ExpressionAttributeValues={
-                    ':order': new_order
-                }
-            )
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        logger.error(f"Error updating section orders: {e}")
         return False
 
 @st.cache_data(ttl=3600, show_spinner=False)

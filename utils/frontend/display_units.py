@@ -28,14 +28,16 @@ def display_units(course_code: str, allow_editing: bool = True):
                         unit_title = st.text_input(
                             "Title",
                             value=unit.title,
-                            label_visibility='collapsed'
+                            label_visibility='collapsed',
+                            key=f'unit_title_{unit.order}'
                         )
                         st.markdown('##### Unit Description')
                         unit_description = st.text_area(
                             "Description",
                             value=unit.description,
                             height=100,
-                            label_visibility='collapsed'
+                            label_visibility='collapsed',
+                            key=f'unit_description_{unit.order}'
                         )
                         
                         if unit.sections:
