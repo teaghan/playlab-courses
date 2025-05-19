@@ -51,7 +51,6 @@ def display_units(course_code: str, allow_editing: bool = True):
                             with st.columns((1,1))[0]:
                                 st.markdown("Drag and drop sections to reorder them")
                                 sorted_section_items = create_sortable_list(section_items, key=f'section_sort_{unit.id}')
-                            
                             # If the order has changed, update the database
                             if sorted_section_items != section_items:
                                 # Create a mapping of section titles to their IDs

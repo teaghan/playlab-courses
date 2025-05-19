@@ -10,6 +10,7 @@ import streamlit as st
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb')
+dynamodb_client = boto3.client('dynamodb')  # Add client for transaction operations
 s3 = boto3.client('s3')
 course_table = dynamodb.Table('playlab-courses')
 bucket_name = 'playlab-courses-content'
@@ -607,39 +608,98 @@ def update_unit_orders(course_code, unit_orders):
 
 def copy_course_contents(source_course_code, target_course_code):
     """
-    Copy all units and sections from source course to target course, including content and files
+    Copy all units and sections from source course to target course, including content and files.
+    Generates new unique IDs for units and sections while maintaining the same structure and content.
     """
     try:
+        # First, copy the course metadata
+        source_metadata = course_table.get_item(
+            Key={
+                'PK': f'COURSE#{source_course_code}',
+                'SK': 'METADATA'
+            }
+        ).get('Item')
+        
+        if not source_metadata:
+            raise Exception(f"Source course {source_course_code} not found")
+            
+        # Create new metadata entry for target course
+        target_metadata = {
+            'PK': {'S': f'COURSE#{target_course_code}'},
+            'SK': {'S': 'METADATA'},
+            'name': {'S': source_metadata['name']},
+            'description': {'S': source_metadata.get('description', '')},
+            'created_by': {'S': source_metadata.get('created_by', '')},
+            'grade_level': {'N': str(int(source_metadata.get('grade_level', 6)))},  # Store as number
+            'created_at': {'S': str(datetime.datetime.now())}
+        }
+        
+        # Use a transaction to ensure atomicity of course metadata copy
+        try:
+            dynamodb_client.transact_write_items(
+                TransactItems=[
+                    {
+                        'Put': {
+                            'Item': target_metadata,
+                            'TableName': 'playlab-courses'
+                        }
+                    }
+                ]
+            )
+        except Exception as e:
+            logger.error(f"Error copying course metadata: {e}")
+            raise Exception("Failed to copy course metadata")
+        
         # Get all units from source course
         source_units = get_course_units(source_course_code)
         
-        # For each unit, copy it and its sections
+        # Create a mapping of old unit IDs to new unit IDs
+        unit_id_mapping = {}
+        
+        # First pass: Create all units with new IDs
         for unit in source_units:
-            unit_id = unit['SK'].replace('UNIT#', '')
+            old_unit_id = unit['SK'].replace('UNIT#', '')
+            new_unit_id = str(uuid.uuid4())  # Generate new unique ID
+            unit_id_mapping[old_unit_id] = new_unit_id
             
             # Create the unit in target course
             create_unit(
                 course_code=target_course_code,
-                unit_id=unit_id,
+                unit_id=new_unit_id,
                 title=unit['title'],
                 description=unit.get('description', ''),
                 order=unit['order']
             )
-            st.cache_data.clear()
+        
+        # Second pass: Copy all sections with new IDs
+        for old_unit_id, new_unit_id in unit_id_mapping.items():
             # Get all sections for this unit
-            sections = get_unit_sections(source_course_code, unit_id)
+            sections = get_unit_sections(source_course_code, old_unit_id)
             
             # Copy each section
             for section in sections:
-                section_id = section['SK'].replace('SECTION#', '')
+                old_section_id = section['SK'].replace('SECTION#', '')
+                new_section_id = str(uuid.uuid4())  # Generate new unique ID
                 section_type = section.get('section_type', 'content')
+                
+                # Prepare section item with all attributes
+                section_item = {
+                    'PK': f'COURSE#{target_course_code}#UNIT#{new_unit_id}',
+                    'SK': f'SECTION#{new_section_id}',
+                    'title': section['title'],
+                    'overview': section.get('overview', ''),
+                    'order': section['order'],
+                    'section_type': section_type,
+                    'GSI1PK': f'SECTION#{new_section_id}',
+                    'GSI1SK': 'METADATA'
+                }
                 
                 if section_type == 'file':
                     # For file-based sections, copy the file to the new course
                     file_path = section.get('file_path')
                     if file_path:
                         try:
-                            # Get file content using the helper function
+                            # Get file content
                             file_data = get_file_content(file_path)
                             if file_data is None:
                                 raise Exception("Could not retrieve file content")
@@ -657,45 +717,42 @@ def copy_course_contents(source_course_code, target_course_code):
                                 bucket_name,
                                 target_key
                             )
-                            st.cache_data.clear()
-                            # Create section with new file path
-                            create_section(
-                                course_code=target_course_code,
-                                unit_id=unit_id,
-                                section_id=section_id,
-                                title=section['title'],
-                                overview=section.get('overview', ''),
-                                order=section['order'],
-                                section_type='file',
-                                file_path=target_key
-                            )
+                            
+                            section_item['file_path'] = target_key
+                            
                         except Exception as e:
-                            logger.error(f"Error copying file for section {section_id}: {e}")
-                            # Create section without file if copy fails
-                            create_section(
-                                course_code=target_course_code,
-                                unit_id=unit_id,
-                                section_id=section_id,
-                                title=section['title'],
-                                overview=section.get('overview', ''),
-                                order=section['order'],
-                                section_type='content',
-                                content=f"Error: Could not copy original file content. {str(e)}"
-                            )
+                            logger.error(f"Error copying file for section {old_section_id}: {e}")
+                            # Convert to content section if file copy fails
+                            section_item['section_type'] = 'content'
+                            section_item['content'] = f"Error: Could not copy original file content. {str(e)}"
                 else:
                     # For content-based sections, copy the content
-                    create_section(
-                        course_code=target_course_code,
-                        unit_id=unit_id,
-                        section_id=section_id,
-                        title=section['title'],
-                        overview=section.get('overview', ''),
-                        order=section['order'],
-                        section_type='content',
-                        content=section.get('content', '')
-                    )
+                    section_item['content'] = section.get('content', '')
+                
+                # Copy assistant association if exists
+                if 'assistant_id' in section:
+                    section_item['assistant_id'] = section['assistant_id']
+                
+                # Create the section
+                course_table.put_item(Item=section_item)
         
+        # Copy any custom assistants associated with the course
+        source_assistants = get_custom_assistants(source_course_code)
+        for assistant in source_assistants:
+            new_assistant_id = str(uuid.uuid4())  # Generate new unique ID
+            assistant_item = {
+                'PK': f'COURSE#{target_course_code}',
+                'SK': f'ASSISTANT#{new_assistant_id}',
+                'assistant_id': new_assistant_id,
+                'name': assistant['name'],
+                'instructions': assistant['instructions'],
+                'created_at': str(datetime.datetime.now())
+            }
+            course_table.put_item(Item=assistant_item)
+        
+        st.cache_data.clear()
         return True
+        
     except Exception as e:
         logger.error(f"Error copying course contents: {e}")
         return False

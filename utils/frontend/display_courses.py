@@ -44,6 +44,7 @@ def copy_course(course_code, course):
     st.markdown(f'What course code will you use for "*{course.get("name")} (Copy)*"?')
     new_course_code = st.text_input("Course Code", value=f"{course_code}-copy")
     st.session_state.copy_banner = st.empty()
+    st.session_state.copy_spinner = st.container()
     
     col1, col2 = st.columns(2)
     with col1:
@@ -55,23 +56,24 @@ def copy_course(course_code, course):
                 st.session_state.copy_banner.error("Course code is already in use")
             else:
                 try:
-                    # Create the new course with copied metadata
-                    create_course(
-                        email=st.session_state.user_email,
-                        course_code=new_course_code,
-                        name=f"{course.get('name')} (Copy)",
-                        description=course.get('description', ''),
-                        grade=course.get('grade_level', 6)
-                    )
+                    with st.session_state.copy_spinner, st.spinner(f"Copying course..."):
+                        # Create the new course with copied metadata
+                        create_course(
+                                email=st.session_state.user_email,
+                            course_code=new_course_code,
+                            name=f"{course.get('name')} (Copy)",
+                            description=course.get('description', ''),
+                            grade=course.get('grade_level', 6)
+                        )
                     
-                    # Copy all units and sections
-                    if copy_course_contents(course_code, new_course_code):
-                        st.session_state.copy_banner.success("Course copied successfully!")
-                        sm.initialize_user(st.session_state.user_email)
-                        st.rerun()
-                    else:
-                        st.session_state.copy_banner.error("Failed to copy course contents")
-                                    
+                        # Copy all units and sections
+                        if copy_course_contents(course_code, new_course_code):
+                            st.session_state.copy_banner.success("Course copied successfully!")
+                            sm.initialize_user(st.session_state.user_email)
+                            st.rerun()
+                        else:
+                            st.session_state.copy_banner.error("Failed to copy course contents")
+                                        
                 except Exception as e:
                     logger.error(f"Failed to copy course: {str(e)}")
                     st.session_state.copy_banner.error(f"Failed to copy course. Try again later.")
