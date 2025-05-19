@@ -282,19 +282,16 @@ def add_section_dialog(course_code: str, unit_id: str):
                     order=next_order,
                     section_type="content"
                 ):
-                    sm.reset_chatbot()
-                    sm.set_unit_context(current_unit)
-                    st.session_state.update({
-                        "section_id": section_id,
-                        "section_title": st.session_state.new_section_name,
-                        "section_overview": st.session_state.new_section_overview,
-                        "editor_content": '',
-                        "update_editor": True
-                    })
-                    sm.initialize_section(unit_id, section_id)
+                    # Reset dialog state
                     st.session_state.add_section_step = 1
                     st.session_state.new_section_name = None
                     st.session_state.new_section_overview = None
+                    # Reset chat bot
+                    sm.reset_chatbot()
+                    # Initialize section in session state
+                    sm.initialize_section(unit_id, section_id)
+                    st.session_state["editor_content"] = ''
+                    st.session_state["update_editor"] = True
                     st.switch_page('pages/edit_section.py')
                 else:
                     st.session_state.add_section_banner.error("Failed to create section")
@@ -333,18 +330,14 @@ def add_section_dialog(course_code: str, unit_id: str):
                             section_type="file",
                             file_path=file_path
                         ):
-                            sm.reset_chatbot()
-                            sm.set_unit_context(current_unit)
-                            st.session_state.update({
-                                "section_id": section_id,
-                                "section_title": st.session_state.new_section_name,
-                                "section_overview": st.session_state.new_section_overview,
-                                "section_file_path": file_path,
-                                'pdf_content': get_file_content(file_path)
-                            })
+                            
                             st.session_state.add_section_step = 1
                             st.session_state.new_section_name = None
                             st.session_state.new_section_overview = None
+                            # Initialize section in session state
+                            sm.initialize_section(unit_id, section_id)
+                            st.session_state["section_file_path"] = st.session_state.section.file_path
+                            st.session_state['pdf_content'] = get_file_content(st.session_state.section.file_path)
                             st.switch_page('pages/edit_file.py')
                         else:
                             st.session_state.add_section_banner.error("Failed to upload file")
