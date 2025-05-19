@@ -342,7 +342,10 @@ def display_conversation(project_id, user='student', section_title='', section_t
                     # Create a temporary file with the same extension
                     file_extension = dropped_files.name.split('.')[-1]
                     temp_file = NamedTemporaryFile(suffix=f'.{file_extension}', delete=False)
-                    temp_file.write(dropped_files.getbuffer())
+                    # Read the entire file content first
+                    file_content = dropped_files.read()
+                    # Write the content to the temporary file
+                    temp_file.write(file_content)
                     temp_file.close()  # Close the file to ensure it's written
                     file_path = temp_file.name
             except Exception as e:
