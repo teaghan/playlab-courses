@@ -23,6 +23,10 @@ class SessionManager:
         return CourseManager.initialize_section(st.session_state.course_code, unit_id, section_id)
     
     @staticmethod
+    def initialize_section_from_id(section_id: str):
+        return CourseManager.initialize_section_from_id(section_id)
+    
+    @staticmethod
     def set_unit_context(unit: Unit):
         """Set unit-related session state"""
         st.session_state.update({

@@ -2,6 +2,10 @@ import streamlit as st
 from streamlit_pdf_viewer import pdf_viewer
 from utils.data.session_manager import SessionManager as sm
 from utils.core.error_handling import catch_error
+from utils.frontend.download_section import download_dialog
+import tempfile
+import os
+import re
 
 st.set_page_config(
     page_title="View Section", 
@@ -10,6 +14,14 @@ st.set_page_config(
 )
 
 try:
+    # Get section ID from query params
+    params = st.query_params
+    if params and 'section_loaded' not in st.session_state:
+        section_id = next(iter(params))
+        sm.clear_user_context()
+        sm.initialize_section_from_id(section_id)
+        st.session_state['section_loaded'] = True
+
     # Check user state
     sm.check_state(check_user=False)
 
@@ -26,11 +38,42 @@ try:
 
     # Display section content based on type
     if section.section_type == 'content':
+        # Add download button
+        if st.columns((3,1))[1].button("Download .docx", use_container_width=True, type="secondary"):
+            download_dialog(
+                section_type='content',
+                section_title=section.title,
+                content=section.content
+            )
         st.markdown(section.content or '', unsafe_allow_html=True)
     elif section.section_type == 'file':
         if st.session_state.get('pdf_content'):
+            # Add download button
+            if st.columns((3,1))[1].button("Download PDF", use_container_width=True, type="secondary"):
+                # Sanitize the section title for use as a filename
+                safe_title = re.sub(r'[^\w\-_.]', '_', section.title)
+                temp_filename = f"{safe_title}.pdf"
+                
+                # Create temporary file only when downloading
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', prefix=f"{safe_title}_") as tmp_file:
+                    tmp_file.write(st.session_state.pdf_content)
+                    tmp_path = tmp_file.name
+                    try:
+                        download_dialog(
+                            section_type='file',
+                            section_title=section.title,
+                            file_path=tmp_path
+                        )
+                    finally:
+                        # Clean up the temporary file after download
+                        try:
+                            os.unlink(tmp_path)
+                        except:
+                            pass
+            # Display PDF
             pdf_viewer(st.session_state.pdf_content)
         else:
             st.error("File content not found")
+
 except Exception as e:
     catch_error() 

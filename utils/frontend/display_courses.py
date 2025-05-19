@@ -106,7 +106,7 @@ def display_courses(allow_edit=False, allow_copy=False):
 
             # Share button
             with col2:
-                course_url = f"{domain_url()}?{course_code}"
+                course_url = f"{domain_url()}/view_course?{course_code}"
                 if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="secondary"):
                     to_clipboard(course_url)
 

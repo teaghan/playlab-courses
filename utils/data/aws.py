@@ -3,6 +3,7 @@ import datetime
 from botocore.exceptions import ClientError
 import re
 from utils.core.logger import logger
+from utils.core.error_handling import catch_error
 import io
 import uuid
 import streamlit as st
@@ -53,35 +54,37 @@ def create_course(email, course_code, name, description, grade):
     Create a new course for a user
     Stores both the user-course relationship and the course metadata
     """
-    
-    # Create course entry under user
-    user_course_item = {
-        'PK': f'USER#{email}',
-        'SK': f'COURSE#{course_code}',
-        'name': name,
-        'description': description,
-        'grade_level': grade,
-        'created_at': str(datetime.datetime.now()),
-        'GSI1PK': 'ALLCOURSES',
-        'GSI1SK': f'COURSE#{course_code}'
-    }
-    course_table.put_item(Item=user_course_item)
-    
-    # Create course metadata
-    metadata_item = {
-        'PK': f'COURSE#{course_code}',
-        'SK': 'METADATA',
-        'name': name,
-        'description': description,
-        'created_by': email,
-        'grade_level': grade,
-        'created_at': str(datetime.datetime.now())
-    }
-    course_table.put_item(Item=metadata_item)
+    try:
+        # Create course entry under user
+        user_course_item = {
+            'PK': f'USER#{email}',
+            'SK': f'COURSE#{course_code}',
+            'name': name,
+            'description': description,
+            'grade_level': grade,
+            'created_at': str(datetime.datetime.now()),
+            'GSI1PK': 'ALLCOURSES',
+            'GSI1SK': f'COURSE#{course_code}'
+        }
+        course_table.put_item(Item=user_course_item)
+        
+        # Create course metadata
+        metadata_item = {
+            'PK': f'COURSE#{course_code}',
+            'SK': 'METADATA',
+            'name': name,
+            'description': description,
+            'created_by': email,
+            'grade_level': grade,
+            'created_at': str(datetime.datetime.now())
+        }
+        course_table.put_item(Item=metadata_item)
 
-    st.cache_data.clear()
-    
-    return True
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        logger.error(f"Error creating course: {e}")
+        return False
 
 def delete_course(email, course_code):
     """
@@ -154,29 +157,37 @@ def get_all_courses():
     """
     Get all courses across all users (for admin purposes)
     """
-    response = course_table.query(
-        IndexName='GSI1',
-        KeyConditionExpression='GSI1PK = :pk',
-        ExpressionAttributeValues={
-            ':pk': 'ALLCOURSES'
-        }
-    )
-    return response.get('Items', [])
+    try:
+        response = course_table.query(
+            IndexName='GSI1',
+            KeyConditionExpression='GSI1PK = :pk',
+            ExpressionAttributeValues={
+                ':pk': 'ALLCOURSES'
+            }
+        )
+        return response.get('Items', [])
+    except Exception as e:
+        logger.error(f"Error getting all courses: {e}")
+        return []
 
 def course_code_exists(course_code):
     """
     Check if a course code exists for any user
     Returns True if the course code exists, False otherwise
     """
-    response = course_table.query(
-        IndexName='GSI1',
-        KeyConditionExpression='GSI1PK = :pk AND GSI1SK = :sk',
-        ExpressionAttributeValues={
-            ':pk': 'ALLCOURSES',
-            ':sk': f'COURSE#{course_code}'
-        }
-    )
-    return len(response.get('Items', [])) > 0
+    try:
+        response = course_table.query(
+            IndexName='GSI1',
+            KeyConditionExpression='GSI1PK = :pk AND GSI1SK = :sk',
+            ExpressionAttributeValues={
+                ':pk': 'ALLCOURSES',
+                ':sk': f'COURSE#{course_code}'
+            }
+        )
+        return len(response.get('Items', [])) > 0
+    except Exception as e:
+        logger.error(f"Error checking course code existence: {e}")
+        return False
 
 # Unit operations
 def create_unit(course_code, unit_id, title, description, order):
@@ -232,6 +243,25 @@ def update_unit(course_code, unit_id, title, description):
         return False
 
 # Section operations
+def section_id_exists(section_id):
+    """
+    Check if a section ID exists anywhere in the database
+    Returns True if the section ID exists, False otherwise
+    """
+    try:
+        # Query the GSI1 index to find any items with this section ID
+        response = course_table.query(
+            IndexName='GSI1',
+            KeyConditionExpression='GSI1PK = :pk',
+            ExpressionAttributeValues={
+                ':pk': f'SECTION#{section_id}'
+            }
+        )
+        return len(response.get('Items', [])) > 0
+    except Exception as e:
+        logger.error(f"Error checking section ID existence: {e}")
+        return False
+
 def create_section(course_code, unit_id, section_id, title, overview, order, section_type="content", file_path=None, content=None):
     """
     Create a new section within a unit
@@ -246,13 +276,20 @@ def create_section(course_code, unit_id, section_id, title, overview, order, sec
         file_path: S3 file path for file-based sections
         content: Content for AI-generated sections
     """
+    # Check if section ID already exists
+    if section_id_exists(section_id):
+        logger.error(f"Section ID {section_id} already exists")
+        return False
+
     item = {
         'PK': f'COURSE#{course_code}#UNIT#{unit_id}',
         'SK': f'SECTION#{section_id}',
         'title': title,
         'overview': overview,
         'order': order,
-        'section_type': section_type
+        'section_type': section_type,
+        'GSI1PK': f'SECTION#{section_id}',  # Changed to use section_id as partition key
+        'GSI1SK': 'METADATA'  # Changed to use a constant sort key
     }
     
     if section_type == "file" and file_path:
@@ -768,4 +805,39 @@ def update_section_assistant(course_code, unit_id, section_id, assistant_id):
         return True
     except Exception as e:
         logger.error(f"Error updating section assistant: {e}")
-        return False 
+        return False
+
+def get_section_location(section_id):
+    """
+    Get the course code and unit ID associated with a section ID
+    Args:
+        section_id: The section ID to look up
+    Returns:
+        tuple: (course_code, unit_id) if found, (None, None) if not found
+    """
+    try:
+        # Query the GSI1 index to find the section
+        response = course_table.query(
+            IndexName='GSI1',
+            KeyConditionExpression='GSI1PK = :pk',
+            ExpressionAttributeValues={
+                ':pk': f'SECTION#{section_id}'
+            }
+        )
+        
+        items = response.get('Items', [])
+        if not items:
+            return None, None
+            
+        # Extract course_code and unit_id from the PK
+        # PK format is: COURSE#{course_code}#UNIT#{unit_id}
+        pk = items[0]['PK']
+        parts = pk.split('#')
+        if len(parts) != 4:
+            return None, None
+            
+        return parts[1], parts[3]  # course_code, unit_id
+        
+    except Exception as e:
+        logger.error(f"Error getting section location: {e}")
+        return None, None 

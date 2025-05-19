@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from utils.data.aws import update_course, update_unit_orders
 from utils.frontend.display_units import display_units
 from utils.frontend.reorder_items import create_sortable_list
@@ -48,7 +49,12 @@ def export_dialog():
         st.session_state.export_complete = False
     if not st.session_state.export_complete:
         with st.spinner("Processing files..."):
-            zip_data = export_course(course_code, st.session_state.course_name)
+            zip_path = export_course(course_code, st.session_state.course_name)
+            # Read the zip file contents
+            with open(zip_path, 'rb') as f:
+                zip_data = f.read()
+            # Clean up the temporary file
+            os.unlink(zip_path)
             st.session_state.export_complete = True
         st.download_button(label="Download Files", 
                         data=zip_data, 
@@ -62,7 +68,7 @@ def export_dialog():
 
 _,col1, col2 = st.columns((3,1,1))
 with col1:
-    course_url = f"{domain_url()}?{course_code}"
+    course_url = f"{domain_url()}/view_course?{course_code}"
     if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="primary"):
         to_clipboard(course_url)
 

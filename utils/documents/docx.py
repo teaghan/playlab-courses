@@ -296,8 +296,18 @@ def docx_render_md(input_path, output_path):
 
 def preprocess_images(markdown_text):
     """Convert HTML img tags to markdown image syntax."""
+    def convert_github_url(url):
+        # Convert GitHub web interface URLs to raw.githubusercontent.com URLs
+        if 'github.com' in url and 'blob' in url:
+            # Remove ?raw=true if present
+            url = url.split('?')[0]
+            # Convert to raw.githubusercontent.com URL
+            url = url.replace('github.com', 'raw.githubusercontent.com')
+            url = url.replace('/blob/', '/')
+        return url
+
     def replace_img(match):
-        src = match.group(1)
+        src = convert_github_url(match.group(1))
         alt = match.group(2)
         return f"![{alt}]({src})"
     
@@ -311,9 +321,9 @@ def preprocess_videos(markdown_text):
         src_url = match.group(1)
         return src_url
     
-    # First handle iframe embeds
-    iframe_pattern = r'<iframe[^>]*src="([^"]+)"[^>]*>'
-    markdown_text = re.sub(iframe_pattern, replace_video, markdown_text)
+    # First handle iframe embeds, including those nested in divs
+    iframe_pattern = r'<div[^>]*>.*?<iframe[^>]*src="([^"]+)"[^>]*>.*?</div>'
+    markdown_text = re.sub(iframe_pattern, replace_video, markdown_text, flags=re.DOTALL)
     
     # Then handle direct video links in alert blocks
     alert_pattern = r'<div[^>]*class="alert[^"]*"[^>]*>.*?<a[^>]*href="([^"]+)"[^>]*>.*?</div>'

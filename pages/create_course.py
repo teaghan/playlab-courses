@@ -41,7 +41,7 @@ with st.form("course_form"):
 
     # Course Code
     st.markdown('#### Course Code')
-    st.markdown(f'This will be used in the course URL (e.g., {domain_url()}?astro-12)')
+    st.markdown(f'This will be used in the course URL (e.g., {domain_url()}/view_course?astro-12)')
     course_code = st.text_input(
         'Code:',
         placeholder='e.g. "astro-12"',

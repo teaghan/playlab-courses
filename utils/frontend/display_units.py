@@ -2,9 +2,10 @@ import streamlit as st
 import uuid
 from utils.data.aws import create_section, delete_unit, delete_section, update_unit, get_file_content, update_section_orders, upload_content_file
 from utils.frontend.reorder_items import create_sortable_list
-from utils.frontend.assistants import get_assistant_instructions
 from utils.data.session_manager import SessionManager as sm
+from utils.frontend.clipboard import to_clipboard
 from utils.data.aws import create_unit
+from utils.core.config import domain_url
 
 def display_units(course_code: str, allow_editing: bool = True):
     """Display units and sections for a course with management options"""
@@ -105,7 +106,7 @@ def display_units(course_code: str, allow_editing: bool = True):
                                     
                                     # Other section action buttons only shown if editing is allowed
                                     if allow_editing:
-                                        col1, col2 = st.columns(2)
+                                        col1, col2, col3 = st.columns(3)
                                         with col1:
                                             # Show edit button based on section type
                                             if section_type == 'content':
@@ -134,6 +135,12 @@ def display_units(course_code: str, allow_editing: bool = True):
                                                     unit.id,
                                                     section.id
                                                 )
+                                        with col3:
+                                            if st.button("🔗", help='Share link to section', 
+                                                         key=f'share_section_{section.id}', use_container_width=False, type="secondary"):
+                                                section_url = f"{domain_url()}/view_section?{section.id}"
+                                                to_clipboard(section_url)
+                                                st.success("Section URL copied to clipboard")
                                     else:
                                         # View Section button is always available
                                         if st.button("View", key=f'view_section_{section.id}', type="primary", use_container_width=True):

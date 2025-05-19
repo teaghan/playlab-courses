@@ -42,4 +42,4 @@ def access_code_dialog(email):
                     catch_error()
         
         if new_code_button:
-            create_access_code()
+            create_access_code(email)

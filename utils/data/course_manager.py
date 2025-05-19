@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 import streamlit as st
-from utils.data.aws import get_course_details, get_course_units, get_unit_sections, course_table, get_custom_assistants
+from utils.data.aws import get_course_details, get_course_units, get_unit_sections, course_table, get_custom_assistants, get_section_location, get_file_content
 from utils.core.config import open_config
 
 @dataclass
@@ -173,6 +173,19 @@ class CourseManager:
             return True
         else:
             return False
+        
+    @staticmethod
+    def initialize_section_from_id(section_id: str):
+        course_code, unit_id = get_section_location(section_id)
+        if CourseManager.initialize_course(course_code):
+            if CourseManager.initialize_section(course_code, unit_id, section_id):
+                if st.session_state.section.section_type == 'file':
+                    st.session_state['pdf_content'] = get_file_content(st.session_state.section.file_path)
+                else:
+                    st.session_state['pdf_content'] = '' 
+                return True
+        return False
+    
     
     @staticmethod
     def clear_cache():

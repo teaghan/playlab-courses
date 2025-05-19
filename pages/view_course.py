@@ -4,8 +4,15 @@ from utils.core.error_handling import catch_error
 from utils.data.session_manager import SessionManager as sm
 
 try:
-    # Get course code from session state
-    course_code = st.session_state.get("course_code")
+    # Get course code from query params
+    params = st.query_params
+    if params:
+        course_code = next(iter(params))
+        sm.clear_user_context()
+    else:
+        # Get course code from session state
+        course_code = st.session_state.get("course_code")
+
     if not course_code:
         st.switch_page("pages/enter_course.py")
 
