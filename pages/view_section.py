@@ -1,17 +1,21 @@
-import streamlit as st
-from streamlit_pdf_viewer import pdf_viewer
-from utils.data.session_manager import SessionManager as sm
-from utils.core.error_handling import catch_error
-from utils.frontend.download_section import download_dialog
 import tempfile
 import os
 import re
+import streamlit as st
+
 
 st.set_page_config(
     page_title="View Section", 
     page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", 
     layout="wide", 
 )
+
+from streamlit_pdf_viewer import pdf_viewer
+from utils.data.session_manager import SessionManager as sm
+from utils.core.error_handling import catch_error
+from utils.frontend.download_section import download_dialog
+from utils.frontend.student_assistant import display_student_assistant
+from utils.frontend.menu import menu
 
 try:
     # Get section ID from query params
@@ -22,11 +26,13 @@ try:
         sm.initialize_section_from_id(section_id)
         st.session_state['section_loaded'] = True
 
+    st.session_state['on_mobile'] = True
+    
     # Check user state
     sm.check_state(check_user=False)
 
+
     # Display page buttons
-    from utils.frontend.menu import menu
     menu()
 
     # Get section from session state
@@ -45,6 +51,8 @@ try:
                 section_title=section.title,
                 content=section.content
             )
+        if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
+            display_student_assistant()
         st.markdown(section.content or '', unsafe_allow_html=True)
     elif section.section_type == 'file':
         if st.session_state.get('pdf_content'):
@@ -70,6 +78,8 @@ try:
                             os.unlink(tmp_path)
                         except:
                             pass
+            if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
+                display_student_assistant()
             # Display PDF
             pdf_viewer(st.session_state.pdf_content)
         else:

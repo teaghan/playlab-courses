@@ -1,8 +1,4 @@
 import streamlit as st
-from utils.frontend.menu import menu
-from utils.data.user_manager import check_state
-from utils.core.emailing import send_email_support
-from utils.core.error_handling import catch_error
 
 # Streamlit page configuration
 st.set_page_config(
@@ -12,7 +8,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-check_state()
+from utils.frontend.menu import menu
+from utils.data.session_manager import SessionManager as sm
+from utils.core.emailing import send_email_support
+from utils.core.error_handling import catch_error
+
+sm.check_state()
 menu()
 
 # Title

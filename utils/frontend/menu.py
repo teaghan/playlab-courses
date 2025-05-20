@@ -1,47 +1,30 @@
+import os
 import streamlit as st
-from streamlit_extras.stylable_container import stylable_container
-from utils.frontend.playlab import display_conversation
-from utils.core.config import open_config
 from utils.data.aws import get_file_content
 from utils.data.session_manager import SessionManager as sm
-from utils.data.course_manager import CourseManager
+from utils.frontend.student_assistant import display_student_assistant
+from utils.core.image_paths import get_image_base64
 
 def logout():
     sm.clear_user_context()
     st.switch_page("app.py")
 
-def teacher_menu():
+def teacher_menu_old():
     st.sidebar.page_link("pages/dashboard.py", label="Dashboard")
     st.sidebar.page_link("pages/support.py", label="Contact Us")
     if st.sidebar.button('Logout', use_container_width=True, type='primary'):
         logout()
 
 def student_menu():
-    pr_color = st.get_option('theme.primaryColor')
-    bg_color = st.get_option('theme.backgroundColor')
 
-    if st.session_state.section.assistant_instructions is not None:
+    if st.session_state.section.assistant_instructions is not None and not st.session_state.on_mobile:
         with st.sidebar:
-            with stylable_container(key="my_styled_popover", 
-                                    css_styles=f"""button {{
-                background-color: {pr_color} !important;
-                color: {bg_color} !important; 
-                border-radius: 0.25rem !important;
-                padding: 0.5rem 1rem !important;
-            }}
-            """):
-                po = st.popover("💬 Ask a question", 
-                                help="Ask AI about this section",
-                                use_container_width=True)
-                with po:
-                    display_conversation(open_config()['playlab']['student_assistant'], user='student', 
-                                        section_title=st.session_state.section.title,
-                                        section_type=st.session_state.section.section_type)
+            display_student_assistant()
+            st.sidebar.markdown('---')
     
     # Only show course structure if we have a course code
     course_code = st.session_state.get("course_code")
     if course_code:
-        st.sidebar.markdown('---')
         # Home button to go back to view course
         if st.sidebar.columns((1,7,1))[1].button(f'{st.session_state.course_name}', icon="🏠", use_container_width=True, type='secondary'):
             st.switch_page('pages/view_course.py')
@@ -66,6 +49,94 @@ def student_menu():
                             else:
                                 st.session_state['pdf_content'] = ''                                            
                             st.switch_page('pages/view_section.py')
+
+def teacher_menu():
+    
+    pages = {
+        "Dashboard": "pages/dashboard.py",
+        "Contact Us": "pages/support.py",
+        "Log Out": "app.py"
+    }
+
+    # Add custom CSS for navigation styling
+    st.markdown(
+        """
+        <style>
+        /* ───── Remove header & padding on top ───── */
+        [data-testid="stHeader"] {display: none;}
+        [data-testid="stMainBlockContainer"] {padding-top: 0.5rem;}
+        
+        /* ───── Style the top navigation bar ───── */
+        .stNavigation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            z-index: 999;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stNavigation .element-container {
+            margin: 0;
+        }
+        
+        .stNavigation button {
+            background: none;
+            border: none;
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            cursor: pointer;
+        }
+        
+        .stNavigation button:hover {
+            color: #ff4b4b;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Format image as base64 and create linked logo
+    parent_dir = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(parent_dir, "../../images/opencource_logo_full.png")
+    img_base64 = get_image_base64(image_path)
+    logo_html = f"""
+        <a href="." target="_self">
+            <img src="{img_base64}" width="200">
+        </a>
+    """
+
+    if not st.session_state.get("on_mobile", False):
+        # Create top navigation bar
+        col_widths = tuple([1] + [0.12*len(p)**(1/2) for p in pages])
+        cols = st.columns(col_widths)
+        cols[0].markdown(logo_html, unsafe_allow_html=True)
+        
+        # Navigation links
+        for idx, (page_name, page_path) in enumerate(pages.items()):
+            with cols[idx+1]:
+                if page_name == "Log Out":
+                    if st.button(page_name, use_container_width=True, type="primary"):
+                        logout()
+                else:
+                    st.page_link(page_path, label=page_name, use_container_width=True)
+        st.markdown('----')
+
+    # Create sidebar navigation bar
+    else:
+        # Navigation links
+        for idx, (page_name, page_path) in enumerate(pages.items()):
+            with st.sidebar:
+                st.markdown(logo_html, unsafe_allow_html=True)
+                #st.page_link("app.py", label=f"![Logo](data:image/png;base64,{img_base64})", use_container_width=True)
+                st.markdown('----')
+                if page_name == "Log Out":
+                    if st.button(page_name, use_container_width=True, type="primary"):
+                        logout()
+                else:
+                    st.page_link(page_path, label=page_name, use_container_width=True)
 
 def menu():
     # Determine if a user is logged in or not, then show the correct menu
