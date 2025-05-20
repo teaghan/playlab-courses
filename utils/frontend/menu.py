@@ -17,13 +17,13 @@ def teacher_menu_old():
 
 def student_menu():
 
-    if st.session_state.section.assistant_instructions is not None and not st.session_state.on_mobile:
+    if 'section' in st.session_state and st.session_state.section is not None and st.session_state.section.assistant_instructions is not None and not st.session_state.on_mobile:
         with st.sidebar:
             display_student_assistant()
             st.sidebar.markdown('---')
     
     # Only show course structure if we have a course code
-    course_code = st.session_state.get("course_code")
+    course_code = st.session_state.get("course_code", '')
     if course_code:
         # Home button to go back to view course
         if st.sidebar.columns((1,7,1))[1].button(f'{st.session_state.course_name}', icon="🏠", use_container_width=True, type='secondary'):
@@ -54,6 +54,7 @@ def teacher_menu():
     
     pages = {
         "Dashboard": "pages/dashboard.py",
+        "Explore": "pages/explore.py",
         "Contact Us": "pages/support.py",
         "Log Out": "app.py"
     }

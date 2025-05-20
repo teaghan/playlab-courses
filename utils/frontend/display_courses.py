@@ -4,7 +4,7 @@ from utils.core.config import domain_url
 from utils.frontend.clipboard import to_clipboard
 from utils.core.logger import logger
 from utils.data.session_manager import SessionManager as sm
-
+import traceback
 def load_editor(course_code, create_copy=False):
     """
     Load course editor
@@ -41,7 +41,7 @@ def copy_course(course_code, course):
     """
     Show confirmation dialog for course copy
     """
-    st.markdown(f'What course code will you use for "*{course.get("name")} (Copy)*"?')
+    st.markdown(f'What course code will you use for "*{course.name} (Copy)*"?')
     new_course_code = st.text_input("Course Code", value=f"{course_code}-copy")
     st.session_state.copy_banner = st.empty()
     st.session_state.copy_spinner = st.container()
@@ -61,9 +61,9 @@ def copy_course(course_code, course):
                         create_course(
                                 email=st.session_state.user_email,
                             course_code=new_course_code,
-                            name=f"{course.get('name')} (Copy)",
-                            description=course.get('description', ''),
-                            grade=course.get('grade_level', 6)
+                            name=f"{course.name} (Copy)",
+                            description=course.description,
+                            grade=course.grade_level
                         )
                     
                         # Copy all units and sections
@@ -75,12 +75,13 @@ def copy_course(course_code, course):
                             st.session_state.copy_banner.error("Failed to copy course contents")
                                         
                 except Exception as e:
+                    # Print traceback
+                    traceback.print_exc()
                     logger.error(f"Failed to copy course: {str(e)}")
                     st.session_state.copy_banner.error(f"Failed to copy course. Try again later.")
     with col2:
         if st.button("Close", use_container_width=True):
             st.rerun()
-
 
 def display_courses(allow_edit=False, allow_copy=False):
     """
@@ -90,14 +91,13 @@ def display_courses(allow_edit=False, allow_copy=False):
     if not st.session_state.user_courses:
         st.info("No courses found. Create your first course!")
         return
-
+    
     for course in st.session_state.user_courses:
-        course_code = course["SK"].replace("COURSE#", "")
+        course_code = course.code
         with st.container():
-            st.markdown(f"### **{course.get('name')}**")
+            st.markdown(f"### **{course.name}**")
             st.markdown(f"*{course_code}*")
             
-            # Create columns for buttons
             col1, col2, col3, col4 = st.columns(4)
 
             # Edit button
@@ -122,6 +122,41 @@ def display_courses(allow_edit=False, allow_copy=False):
             if allow_edit:
                 with col4:
                     if st.button("Delete", key=f'delete_{course_code}', use_container_width=True):
-                        delete_course_confirm(course.get("name"), course_code)
+                        delete_course_confirm(course.name, course_code)
+
+            st.markdown('---') 
+
+
+def explore_courses():
+    """
+    Display courses with various interaction options
+    """
+
+    for course in sm.get_open_courses():
+        course_code = course.code
+        with st.container():
+            st.markdown(f"### **{course.name}**")
+            st.markdown(f"*{course_code}*")
+            with st.expander("Description"):
+                st.markdown(f"{course.description}", unsafe_allow_html=True)
+
+            # In explore mode, show different buttons based on role
+            if st.session_state.get('role') == 'teacher':
+                col1, col2, col3 = st.columns(3)
+
+                with col2:
+                    course_url = f"{domain_url()}/view_course?{course_code}"
+                    if st.button("Copy Course URL", key=f'copy_url_{course_code}', use_container_width=True, type="secondary"):
+                        to_clipboard(course_url)
+                with col3:
+                    if st.button("Create a Copy", key=f'copy_{course_code}', use_container_width=True):
+                        copy_course(course_code, course)
+            else:
+                col1 = st.columns(1)[0]
+            with col1:
+                if st.button("View", key=f'view_{course_code}', use_container_width=True, type="primary"):
+                    # Store course code in session state and redirect to view_course
+                    st.session_state.course_code = course_code
+                    st.switch_page("pages/view_course.py")
 
             st.markdown('---') 

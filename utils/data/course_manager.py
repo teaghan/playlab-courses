@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 import streamlit as st
-from utils.data.aws import get_course_details, get_course_units, get_unit_sections, course_table, get_custom_assistants, get_section_location, get_file_content
+from utils.data.aws import get_course_details, get_course_units, get_unit_sections, course_table, get_custom_assistants, get_section_location, get_file_content, get_open_courses
 from utils.core.config import open_config
 
 @dataclass
@@ -41,6 +41,7 @@ class Course:
     name: str
     description: str
     grade_level: int
+    availability: str
     units: List[Unit]
 
 class CourseManager:
@@ -95,6 +96,7 @@ class CourseManager:
             name=metadata.get('name', ''),
             description=metadata.get('description', ''),
             grade_level=metadata.get('grade_level', 6),
+            availability=metadata.get('availability', 'requires_code'),
             units=units
         )
     
@@ -108,6 +110,7 @@ class CourseManager:
                 'course_name': course.name,
                 'course_description': course.description,
                 'grade_level': course.grade_level,
+                'course_availability': course.availability,
                 'course_units': course.units
             })
             return True
@@ -190,4 +193,25 @@ class CourseManager:
     @staticmethod
     def clear_cache():
         """Clear the course cache"""
-        st.cache_data.clear() 
+        st.cache_data.clear()
+
+    @staticmethod
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def get_open_courses() -> List[Course]:
+        """
+        Get all courses that are marked as 'open_to_all'
+        Returns a list of Course dataclass objects
+        """
+        # Get all open courses from AWS
+        open_course_data = get_open_courses()
+        
+        # Convert each course to a Course dataclass
+        courses = []
+        for course_data in open_course_data:
+            course_code = course_data['SK'].replace('COURSE#', '')
+            # Use existing get_course method to get full course structure
+            course = CourseManager.get_course(course_code)
+            if course:
+                courses.append(course)
+        
+        return courses

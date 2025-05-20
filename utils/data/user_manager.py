@@ -2,13 +2,14 @@ from dataclasses import dataclass
 from typing import List
 import streamlit as st
 from utils.data.aws import get_user_courses
+from utils.data.course_manager import CourseManager, Course
 import re
 
 @dataclass
 class User:
     user_email: str
     role: str
-    user_courses: List[str]
+    user_courses: List[Course]
     is_mobile: bool
     authentication_status: bool
 
@@ -27,7 +28,8 @@ class UserManager:
     @staticmethod
     def collect_user_courses():
         """Collect and store user's courses in session state"""
-        st.session_state.user_courses = get_user_courses(st.session_state.user_email)
+        course_codes = get_user_courses(st.session_state.user_email)
+        st.session_state.user_courses = [CourseManager.get_course(course_code) for course_code in course_codes]
 
     @staticmethod
     def reset_user():

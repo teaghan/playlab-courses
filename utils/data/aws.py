@@ -38,16 +38,20 @@ def validate_course_code(code: str) -> bool:
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_user_courses(email):
     """
-    Retrieve all courses for a specific user
+    Retrieve all course codes for a specific user
+    Returns:
+        list: A list of course codes associated with the user
     """
     response = course_table.query(
         KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+        ProjectionExpression='SK',
         ExpressionAttributeValues={
             ':pk': f'USER#{email}',
             ':sk_prefix': 'COURSE#'
         }
     )
-    return response.get('Items', [])
+    # Extract course codes from SK values (remove 'COURSE#' prefix)
+    return [item['SK'].replace('COURSE#', '') for item in response.get('Items', [])]
 
 # Course operations
 def create_course(email, course_code, name, description, grade):
@@ -63,6 +67,7 @@ def create_course(email, course_code, name, description, grade):
             'name': name,
             'description': description,
             'grade_level': grade,
+            'availability': 'requires_code',  # Default to requiring code
             'created_at': str(datetime.datetime.now()),
             'GSI1PK': 'ALLCOURSES',
             'GSI1SK': f'COURSE#{course_code}'
@@ -77,6 +82,7 @@ def create_course(email, course_code, name, description, grade):
             'description': description,
             'created_by': email,
             'grade_level': grade,
+            'availability': 'requires_code',  # Default to requiring code
             'created_at': str(datetime.datetime.now())
         }
         course_table.put_item(Item=metadata_item)
@@ -476,27 +482,35 @@ def delete_content_file(course_code, file_name):
         logger.error(f"Error deleting file: {e}")
         return False
 
-def update_course(email, course_code, name, description, grade):
+def update_course(email, course_code, name, description, grade, availability=None):
     """
     Update an existing course's details
     """
     try:
+        # Build update expressions
+        update_expr = 'SET #name = :name, #desc = :desc, grade_level = :grade'
+        expr_values = {
+            ':name': name,
+            ':desc': description,
+            ':grade': grade
+        }
+        
+        if availability is not None:
+            update_expr += ', availability = :avail'
+            expr_values[':avail'] = availability
+
         # Update course entry under user
         course_table.update_item(
             Key={
                 'PK': f'USER#{email}',
                 'SK': f'COURSE#{course_code}'
             },
-            UpdateExpression='SET #name = :name, #desc = :desc, grade_level = :grade',
+            UpdateExpression=update_expr,
             ExpressionAttributeNames={
                 '#name': 'name',
                 '#desc': 'description'
             },
-            ExpressionAttributeValues={
-                ':name': name,
-                ':desc': description,
-                ':grade': grade
-            }
+            ExpressionAttributeValues=expr_values
         )
         st.cache_data.clear()
         
@@ -506,16 +520,12 @@ def update_course(email, course_code, name, description, grade):
                 'PK': f'COURSE#{course_code}',
                 'SK': 'METADATA'
             },
-            UpdateExpression='SET #name = :name, #desc = :desc, grade_level = :grade',
+            UpdateExpression=update_expr,
             ExpressionAttributeNames={
                 '#name': 'name',
                 '#desc': 'description'
             },
-            ExpressionAttributeValues={
-                ':name': name,
-                ':desc': description,
-                ':grade': grade
-            }
+            ExpressionAttributeValues=expr_values
         )
         st.cache_data.clear()
         return True
@@ -897,4 +907,28 @@ def get_section_location(section_id):
         
     except Exception as e:
         logger.error(f"Error getting section location: {e}")
-        return None, None 
+        return None, None
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_open_courses():
+    """
+    Get all courses that are marked as 'open_to_all'
+    Returns a list of course items with basic metadata
+    """
+    try:
+        # Query using GSI1 to get all courses
+        response = course_table.query(
+            IndexName='GSI1',
+            KeyConditionExpression='GSI1PK = :pk',
+            FilterExpression='availability = :avail',
+            ExpressionAttributeValues={
+                ':pk': 'ALLCOURSES',
+                ':avail': 'open_to_all'
+            }
+        )
+        
+        # Return the filtered courses
+        return response.get('Items', [])
+    except Exception as e:
+        logger.error(f"Error getting open courses: {e}")
+        return [] 

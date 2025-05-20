@@ -90,7 +90,7 @@ class SessionManager:
         UserManager.reset_user()
 
     @staticmethod
-    def check_state(check_user=False, reset_chat=False, user_reset=False):
+    def check_state(check_user=False, reset_chat=False, user_reset=False, reset_course=False):
         """Check and initialize session state"""
         if "authentication_status" not in st.session_state:
             st.session_state['authentication_status'] = False
@@ -100,6 +100,11 @@ class SessionManager:
 
         if user_reset:
             SessionManager.clear_user_context()
+
+        if reset_course:
+            SessionManager.clear_section_context()
+            SessionManager.clear_unit_context()
+            SessionManager.clear_course_context()
         
         # Load styling
         load_style()
@@ -131,3 +136,9 @@ class SessionManager:
         st.session_state['drop_file'] = False
         st.session_state['math_attachments'] = []
         st.session_state['model_loaded'] = False
+
+    @staticmethod
+    def get_open_courses():
+        """Get open courses from database"""
+        return CourseManager.get_open_courses()
+

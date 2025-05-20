@@ -25,18 +25,17 @@ try:
         sm.clear_user_context()
         sm.initialize_section_from_id(section_id)
         st.session_state['section_loaded'] = True
-
-    st.session_state['on_mobile'] = True
     
     # Check user state
     sm.check_state(check_user=False)
-
 
     # Display page buttons
     menu()
 
     # Get section from session state
     section = st.session_state.get("section")
+    if section is None:
+        st.switch_page('pages/enter_course.py')
 
     # Navigation
     if st.columns((1, 3))[0].button('Return to Course', use_container_width=True, type='primary'):

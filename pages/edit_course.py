@@ -100,6 +100,16 @@ with st.expander("Edit Course Details"):
         help='Select the grade level for this course'
     )
     
+    st.markdown('##### Course Availability')
+    availability = st.selectbox(
+        'Availability',
+        options=['requires_code', 'open_to_all'],
+        format_func=lambda x: 'Requires Course Code' if x == 'requires_code' else 'Open to All',
+        index=0 if st.session_state.get('course_availability', 'requires_code') == 'requires_code' else 1,
+        label_visibility='collapsed',
+        help='Control who can access this course'
+    )
+    
     st.markdown('##### Course Description')
     course_description = st.text_area(
         'Description',
@@ -131,7 +141,8 @@ with st.expander("Edit Course Details"):
                     course_code=course_code,
                     name=course_name,
                     description=course_description,
-                    grade=student_grade
+                    grade=student_grade,
+                    availability=availability
                 ):
                     # If unit order has changed, update it
                     if st.session_state.course_units and sorted_unit_items != unit_items:                                
