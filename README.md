@@ -4,18 +4,18 @@ A platform that allows educators to create AI-enhanced course websites with buil
 
 ## Live Access
 
-- **Main Platform**: [playlab-courses.com](https://playlab-courses.com)
-- **Example Course**: [playlab-courses.com?astro-12](https://playlab-courses.com?astro-12)
-
+- **Main Platform**: [playlab-courses.com](https://opencources.com)
+- **Example Course**: [playlab-courses.com?astro-12](https://opencources.com?astro-12)
 
 ### Key Features
 
-- **AI-Powered Course Creation**: Built-in AI assistants help teachers create course materials
-- **Smart Student Support**: AI assistants provide real-time help to students as they navigate course content
-- **Course Organization**: Structured content management with units and sections
-- **Export Capabilities**: Export course materials in docx and txt formats
-- **Content Templates**: Use existing sections as templates for new content creation
-- **Assignment Assistance**: AI-powered help for students working on assignments
+- **AI-Powered Course Creation**: AI helps teachers create and improve their course materials
+- **Personalized Learning Support**: Build AI tutors that help students learn in ways that work best for them
+- **Easy Organization**: Simple tools to arrange your course into units and sections
+- **Export Your Work**: Save your course materials as Word docs, text files, or PDFs
+- **Ready-to-Use Templates**: Save time by using existing content as starting points for new lessons
+- **Homework Helper**: AI helps students when they get stuck on assignments
+- **Share and Learn**: Join a community where teachers can share their courses with others
 
 ![Teacher using a template to create new content](./images/template_screenshot.png)
 
@@ -24,15 +24,19 @@ A platform that allows educators to create AI-enhanced course websites with buil
 ## 🤖 AI Assistants
 
 ### Teacher Assistant
-- Helps with content creation and organization
-- Suggests improvements and optimizations
-- Assists with document formatting and structure
+- Makes creating course content easier and faster
+- Gives tips to make your content better
+- Helps format your documents neatly
 - Check out the [Teacher Assistant built in Playlab](https://www.playlab.ai/project/cmaofa4o30m9fsvih246c1eqc)
 
 ### Student Assistant
-- Provides real-time help with course content
-- Answers questions about the course material that the student is currently viewing
-- Offers explanations and clarifications
+- Easy to set up by teachers
+- Make it work exactly how you want:
+  - Put different helpers in different parts of your course
+  - Instruct each helper to be an expert in specific topics
+  - Give students the exact help they need
+- Helps students right when they need it
+- Answers questions about what students are reading
 - Check out the [Student Assistant built in Playlab](https://www.playlab.ai/project/cmaofcbwm0m9lsvih8sdt1578)
 
 ## 📚 Building a Course
@@ -41,8 +45,8 @@ A platform that allows educators to create AI-enhanced course websites with buil
    - Log in as a teacher
    - Enter course details:
      - Course name (e.g., "Introduction to Astronomy")
-     - Course code (3-20 characters, lowercase letters, numbers, and hyphens)
-     - Grade level (K-12 or Adult)
+     - Course code
+     - Grade level
      - Optional course description
    - Click "Create Course" to save
 
@@ -51,7 +55,6 @@ A platform that allows educators to create AI-enhanced course websites with buil
    - For each unit:
      - Enter unit name and description
      - Add sections within the unit
-     - Drag and drop to reorder units
    - Edit course details anytime:
      - Update course name, grade level, or description
      - Reorder units using drag and drop
@@ -65,6 +68,7 @@ A platform that allows educators to create AI-enhanced course websites with buil
      - Preview your content in real-time
 
 4. **Share Your Course**
+   - Under the "Course Details" you can **make your course Open Source by making it "Open to All"**
    - Copy the course URL to share with students
    - Students can access the course using the URL
    - Export course materials for offline use
@@ -73,4 +77,3 @@ A platform that allows educators to create AI-enhanced course websites with buil
 
 - **Enhanced RAG Capabilities**: Enable the AI to interact with the entire course material simultaneously
 - **Advanced Document Editing**: Improve the AI-assisted document creation and editing
-- **Community Courses**: Facilitate the sharing and exploring open-sourced courses
