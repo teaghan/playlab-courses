@@ -1,5 +1,6 @@
 import streamlit as st
 from st_equation_editor import mathfield
+import json
 import tempfile
 from playlab_api import PlaylabApp
 import time
@@ -8,7 +9,8 @@ from utils.frontend.styling import button_style
 from utils.core.logger import logger
 from tempfile import NamedTemporaryFile
 import os
-
+import re
+import traceback
 custom_button = button_style()
 
 # Load model
@@ -74,42 +76,46 @@ def equation_editor(on_mobile):
             st.session_state.math_attachments.append(tex)
         st.rerun()
 
-def message_fn(message, role='student', section_title='', section_type='content'):
+def message_fn(message, role='student', section_title='', section_type='content', json=False):
     if role == 'teacher':
-        return f'''{{
-        "message": "{message}",
-        "course_name": "{st.session_state.get('course_name', '')}",
-        "student_grade": "{st.session_state.get('grade_level', '')}",
-        "unit_title": "{st.session_state.get('unit_title', '')}",
-        "module_title": "{section_title}",
-        "content": "{st.session_state.get("editor_content", "")}",
-        "template_content": "{st.session_state.get("template_content", "")}"
+        message = f'''{{
+        "message": """{message}""",
+        "course_name": """{st.session_state.get('course_name', '')}""",
+        "student_grade": """{st.session_state.get('grade_level', '')}""",
+        "unit_title": """{st.session_state.get('unit_title', '')}""",
+        "module_title": """{section_title}""",
+        "content": """{st.session_state.get("editor_content", "")}""",
+        "template_content": """{st.session_state.get("template_content", "")}"""
     }}'''
+    
     elif role == 'student':
         if len(st.session_state.messages) > 2:
-            return f'''{{
-            "message": "{message}"
+            message = f'''{{
+            "message": """{message}"""
             }}'''
         else:
             if section_type == 'file':
-                return f'''{{
-                "message": "{message}",
-                "student_grade": "{st.session_state.get('grade_level', '')}",
-                "course_name": "{st.session_state.get('course_name', '')}",
-                "unit_title": "{st.session_state.get('unit_title', '')}",
-                "module_title": "{section_title}",
-                "teacher_instructions": "{st.session_state.section.assistant_instructions}"
+                message = f'''{{
+                "message": """{message}""",
+                "student_grade": """{st.session_state.get('grade_level', '')}""",
+                "course_name": """{st.session_state.get('course_name', '')}""",
+                "unit_title": """{st.session_state.get('unit_title', '')}""",
+                "module_title": """{section_title}""",
+                "teacher_instructions": """{st.session_state.section.assistant_instructions}"""
                 }}'''
             else:
-                return f'''{{
-                "message": "{message}",
-                "student_grade": "{st.session_state.get('grade_level', '')}",
-                "course_name": "{st.session_state.get('course_name', '')}",
-                "unit_title": "{st.session_state.get('unit_title', '')}",
-                "module_title": "{section_title}",
-                "content": "{st.session_state.section.content}",
-                "teacher_instructions": "{st.session_state.section.assistant_instructions}"
+                message = f'''{{
+                "message": """{message}""",
+                "student_grade": """{st.session_state.get('grade_level', '')}""",
+                "course_name": """{st.session_state.get('course_name', '')}""",
+                "unit_title": """{st.session_state.get('unit_title', '')}""",
+                "module_title": """{section_title}""",
+                "content": """{st.session_state.section.content}""",
+                "teacher_instructions": """{st.session_state.section.assistant_instructions}"""
                 }}'''
+    if json:
+        return json.dumps(message)
+    return message
 
 def response_fn(response, role='student'):
     if role == 'teacher':
@@ -117,121 +123,42 @@ def response_fn(response, role='student'):
             st.session_state['editor_content'] = response['content']
             st.session_state['update_editor'] = True
 
-def parse_ai_response(response_str: str) -> dict:
-    """Parse AI response string into dictionary without using json library"""
+def parse_ai_response(text: str) -> dict:
+    """
+    Parse a string to extract 'message' and 'content' values.
+    Returns a dictionary containing the found keys and their values.
+    Expects values to be surrounded by triple quotes.
+    
+    Args:
+        text (str): Input string to parse
+        
+    Returns:
+        dict: Dictionary with 'message' and/or 'content' keys and their corresponding values
+    """
     result = {}
-    i = 0
-    n = len(response_str)
+    keys = ['message', 'content']
     
-    def skip_whitespace():
-        nonlocal i
-        while i < n and response_str[i].isspace():
-            i += 1
-    
-    def parse_string():
-        nonlocal i
-        if i >= n or response_str[i] != '"':
-            return None
-        i += 1
-        parts = []
-        while i < n:
-            if response_str[i] == '"':
-                i += 1
-                return ''.join(parts)
-            elif response_str[i] == '\\' and i + 1 < n:
-                # Handle escape sequences
-                if response_str[i+1] in ['"', '\\', '/']:
-                    parts.append(response_str[i+1])
-                    i += 2
-                elif response_str[i+1] == 'n':
-                    parts.append('\n')
-                    i += 2
-                else:
-                    parts.append(response_str[i])
-                    i += 1
-            else:
-                parts.append(response_str[i])
-                i += 1
-        return ''.join(parts)
-    
-    def parse_value():
-        nonlocal i
-        skip_whitespace()
-        if i >= n:
-            return None
-        if response_str[i] == '"':
-            return parse_string()
-        elif response_str[i] == '{':
-            return parse_object()
-        return None
-    
-    def parse_object():
-        nonlocal i
-        obj = {}
-        skip_whitespace()
-        if i >= n or response_str[i] != '{':
-            return None
-        i += 1
-        skip_whitespace()
-        
-        while i < n and response_str[i] != '}':
-            # Parse key
-            skip_whitespace()
-            if response_str[i] != '"':
-                break
-            key = parse_string()
-            if key is None:
-                break
-                
-            # Parse colon
-            skip_whitespace()
-            if i >= n or response_str[i] != ':':
-                break
-            i += 1
+    for key in keys:
+        key_with_quotes = f'"{key}":'
+        if key_with_quotes in text:
+            # Find the start position after the key
+            start_idx = text.index(key_with_quotes) + len(key_with_quotes)
             
-            # Parse value
-            value = parse_value()
-            if value is not None:
-                obj[key] = value
+            # Skip whitespace to find the triple quote
+            while start_idx < len(text) and text[start_idx].isspace():
+                start_idx += 1
+            
+            # Skip the opening triple quote
+            if text.startswith('"""', start_idx):
+                start_idx += 3
                 
-            # Parse comma or end
-            skip_whitespace()
-            if i < n and response_str[i] == ',':
-                i += 1
-                skip_whitespace()
-        
-        if i < n and response_str[i] == '}':
-            i += 1
-        return obj
+                # Find the closing triple quote
+                end_idx = text.find('"""', start_idx)
+                if end_idx != -1:
+                    value = text[start_idx:end_idx]
+                    result[key] = value
     
-    # First try to parse the entire string as a single object
-    parsed = parse_object()
-    if parsed:
-        # If we have a message field that contains JSON, try to parse it
-        if 'message' in parsed and isinstance(parsed['message'], str):
-            if parsed['message'].startswith('{') and parsed['message'].endswith('}'):
-                nested = parse_object(parsed['message'])
-                if nested:
-                    # Merge the nested object with the original object
-                    result = {**parsed, **nested}
-                    return result
-        # If no nested JSON or if we have multiple fields, return the parsed object
-        return parsed
-    
-    # If parsing as a single object failed, try to parse multiple objects
-    i = 0  # Reset index
-    while i < n:
-        skip_whitespace()
-        if i >= n:
-            break
-        obj = parse_object()
-        if obj:
-            # Merge the objects, with later objects taking precedence
-            result = {**result, **obj}
-        else:
-            i += 1
-    
-    return result or {}
+    return result
 
 # Display conversation
 def display_conversation(project_id, user='student', section_title='', section_type='content'):
@@ -400,9 +327,9 @@ def display_conversation(project_id, user='student', section_title='', section_t
             except Exception as e:
                 logger.error(f"Error deleting temporary file: {str(e)}")
         
-        logger.info(f'RESPONSE:\n\n{response}\n\n')
+        logger.info(fr'RESPONSE: {response['content']}')
         response = parse_ai_response(response['content'])
-        logger.info(f'PARSED RESPONSE:\n\n{response}\n\n')
+        logger.info(fr'PARSED RESPONSE: {response}')
         st.session_state.messages.append({"role": "assistant", "content": rf"{response['message']}"})    
         st.session_state.email_sent = False
         # Display the response letter by letter

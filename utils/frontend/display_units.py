@@ -159,11 +159,11 @@ def display_units(course_code: str, allow_editing: bool = True):
                         if st.button("Add Section", key=f"add_section_{unit.id}", use_container_width=True, type="primary"):
                             add_section_dialog(course_code, unit.id)
                 st.markdown('---')
-
-    with st.columns((1,2,1))[1]:
-        # Add Unit button
-        if st.button("Add Unit", type="primary", use_container_width=True):
-            add_unit_dialog()
+    if allow_editing:
+        with st.columns((1,2,1))[1]:
+            # Add Unit button
+            if st.button("Add Unit", type="primary", use_container_width=True):
+                add_unit_dialog()
 
 # Add Unit Dialog
 @st.dialog("Add Unit")

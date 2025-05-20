@@ -39,7 +39,8 @@ section = st.session_state.get("section")
 unit_id = section.unit_id
 
 # Display section title
-st.markdown(f"<h1 style='text-align: center; color: grey;'>{section.title}</h1>", unsafe_allow_html=True)
+page_header = st.empty()
+page_header.markdown(f"<h1 style='text-align: center; color: grey;'>{section.title}</h1>", unsafe_allow_html=True)
 
 if st.columns((1, 3))[0].button('Return to Course Editor', use_container_width=True, type='primary'):
     st.switch_page('pages/edit_course.py')
@@ -63,6 +64,7 @@ section_overview = st.text_area(
 # AI Assistant Selection
 selected_assistant_id = display_assistant_selection(course_code, section)
 
+success_banner = st.empty()
 
 # Save button
 if st.button("Save Section", type="primary", use_container_width=True):
@@ -83,18 +85,16 @@ if st.button("Save Section", type="primary", use_container_width=True):
                 section_id=section.id,
                 assistant_id=selected_assistant_id
             ):
-                st.session_state.section_updated = True
-                st.rerun()
+                success_banner.success("Section updated successfully!")
+                page_header.empty()
+                page_header.markdown(f"<h1 style='text-align: center; color: grey;'>{section_title}</h1>", unsafe_allow_html=True)
+
             else:
                 catch_error()
         else:
             catch_error()
     except Exception as e:
         catch_error()
-
-if st.session_state.get('section_updated', False):
-    st.success("Section updated successfully!")
-    st.session_state.section_updated = False
 
 col1, col2 = st.columns([1, 1])
 
@@ -115,7 +115,6 @@ with col2:
         overwrite=True,
         on_change=on_change_editor
     )
-
 
 st.markdown('### Preview:')
 with st.container(height=750):
