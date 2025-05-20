@@ -1,11 +1,11 @@
 import streamlit as st
 import uuid
 from utils.data.aws import create_section, delete_unit, delete_section, update_unit, get_file_content, update_section_orders, upload_content_file
-from utils.frontend.reorder_items import create_sortable_list
 from utils.data.session_manager import SessionManager as sm
 from utils.frontend.clipboard import to_clipboard
 from utils.data.aws import create_unit
 from utils.core.config import domain_url
+from st_draggable_list import DraggableList
 
 def display_units(course_code: str, allow_editing: bool = True):
     """Display units and sections for a course with management options"""
@@ -47,23 +47,14 @@ def display_units(course_code: str, allow_editing: bool = True):
                             
                             # Add section reordering
                             st.markdown('##### Reorder Sections')
-                            section_items = [section.title for section in sorted_sections]
+                            # Convert sections to list of dictionaries for DraggableList
+                            section_items = [{"id": section.id, "name": section.title, "order": int(section.order)} for section in sorted_sections]
+                            #st.code(section_items)
                             with st.columns((1,1))[0]:
                                 st.markdown("Drag and drop sections to reorder them")
-                                sorted_section_items = create_sortable_list(section_items, key=f'section_sort_{unit.id}')
-                            # If the order has changed, update the database
-                            if sorted_section_items != section_items:
-                                # Create a mapping of section titles to their IDs
-                                title_to_id = {section.title: section.id for section in sorted_sections}
-                                
-                                # Create list of (section_id, new_order) tuples
-                                section_orders = [(title_to_id[title], i+1) for i, title in enumerate(sorted_section_items)]
-                                
-                                if update_section_orders(course_code, unit.id, section_orders):
-                                    st.rerun()
-                                else:
-                                    st.error("Failed to update section order")
-                        
+                                sorted_section_items = DraggableList(section_items, key=f'section_sort_{unit.id}')
+                            #st.code(sorted_section_items)
+
                         # Unit action buttons in columns
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -74,6 +65,15 @@ def display_units(course_code: str, allow_editing: bool = True):
                                     title=unit_title,
                                     description=unit_description
                                 ):
+                                    # If the order has changed, update the database
+                                    if unit.sections and sorted_sections != section_items:
+                                        # Create list of (section_id, new_order) tuples from the sorted items
+                                        section_orders = [(item['id'], i+1) for i, item in enumerate(sorted_section_items)]
+                                        
+                                        if update_section_orders(course_code, unit.id, section_orders):
+                                            clear_sort_session_state()
+                                        else:
+                                            st.error("Failed to update section order")
                                     st.session_state[f'unit_updated_{unit.id}'] = True
                                     st.rerun()
                                 else:
@@ -188,6 +188,7 @@ def add_unit_dialog():
                     description=unit_description,
                     order=next_order
                 )
+                clear_sort_session_state()
                 st.rerun()
             else:
                 st.session_state.add_unit_banner.error("Please enter a unit name")
@@ -359,6 +360,7 @@ def delete_unit_confirm(unit_name: str, course_code: str, unit_id: str):
     with col1:
         if st.button("Delete Unit", type="primary", use_container_width=True):
             if delete_unit(course_code, unit_id):
+                clear_sort_session_state()
                 st.rerun()
             else:
                 st.session_state.delete_banner.error("Failed to delete unit")
@@ -377,10 +379,22 @@ def delete_section_confirm(section_name: str, course_code: str, unit_id: str, se
     with col1:
         if st.button("Delete Section", type="primary", use_container_width=True):
             if delete_section(course_code, unit_id, section_id):
+                clear_sort_session_state()
                 st.rerun()
             else:
                 st.session_state.delete_banner.error("Failed to delete section")
     
     with col2:
         if st.button("Cancel", use_container_width=True):
-            st.rerun() 
+            st.rerun()
+
+def clear_sort_session_state():
+    """Clear sorting-related session state variables."""
+    # Remove unit sort if it exists
+    if 'unit_sort' in st.session_state:
+        del st.session_state['unit_sort']
+    
+    # Find and remove all section sort keys
+    section_sort_keys = [key for key in st.session_state.keys() if key.startswith('section_sort_')]
+    for key in section_sort_keys:
+        del st.session_state[key] 

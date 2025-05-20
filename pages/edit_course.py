@@ -1,14 +1,14 @@
 import streamlit as st
 import os
 from utils.data.aws import update_course, update_unit_orders
-from utils.frontend.display_units import display_units
-from utils.frontend.reorder_items import create_sortable_list
+from utils.frontend.display_units import display_units, clear_sort_session_state
 from utils.documents.export import export_course
 from utils.core.config import domain_url
 from utils.frontend.clipboard import to_clipboard
 from utils.core.error_handling import catch_error
 from utils.frontend.assistants import display_assistant_management
 from utils.data.session_manager import SessionManager as sm
+from st_draggable_list import DraggableList
 
 st.set_page_config(
     page_title="Edit Course", 
@@ -115,15 +115,11 @@ with st.expander("Edit Course Details"):
         sorted_units = sorted(st.session_state.course_units, key=lambda x: x.order)
         
         # Create a list of unit titles for sorting
-        unit_items = [unit.title for unit in sorted_units]
-        
+        unit_items = [{"id": unit.id, "name": unit.title, "order": int(unit.order)} for unit in sorted_units]
         # Add the sortable list
         with st.columns((1,1))[0]:
             st.markdown("Drag and drop units to reorder them")
-            sorted_items = create_sortable_list(unit_items, key='unit_sort')
-            
-            # Store the sorted items in session state for form submission
-            st.session_state.sorted_unit_items = sorted_items
+            sorted_unit_items = DraggableList(unit_items, key='unit_sort')
     
     # Action buttons in columns
     with st.columns((1,2,1))[1]:
@@ -138,15 +134,13 @@ with st.expander("Edit Course Details"):
                     grade=student_grade
                 ):
                     # If unit order has changed, update it
-                    if 'sorted_unit_items' in st.session_state and st.session_state.sorted_unit_items != unit_items:
-                        # Create a mapping of unit titles to their IDs
-                        title_to_id = {unit.title: unit.id for unit in sorted_units}
-                        
+                    if st.session_state.course_units and sorted_unit_items != unit_items:                                
                         # Create list of (unit_id, new_order) tuples
-                        unit_orders = [(title_to_id[title], i+1) for i, title in enumerate(st.session_state.sorted_unit_items)]
+                        unit_orders = [(item['id'], i+1) for i, item in enumerate(sorted_unit_items)]
                         
                         if update_unit_orders(course_code, unit_orders):
                             st.session_state.course_updated = True
+                            clear_sort_session_state()
                             st.rerun()
                         else:
                             catch_error()
