@@ -316,9 +316,16 @@ def display_conversation(project_id, user='student', section_title='', section_t
 
         # Get the response from the tutor
         prompt = message_fn(prompt, user, section_title, section_type)
-        with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
-            logger.info(f'PROMPT:\n\n{prompt}\n\n')
-            response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
+        while True:
+            with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
+                logger.info(f'PROMPT:\n\n{prompt}\n\n')
+                response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
+                logger.info(fr'RESPONSE: {response['content']}')
+                response = parse_ai_response(response['content'])
+                logger.info(fr'PARSED RESPONSE: {response}')
+                # Check if "message" key is present
+                if 'message' in response and response['message']:
+                    break
         
         # Clean up the temporary file after we're done with it
         if temp_file and os.path.exists(temp_file.name):
@@ -327,9 +334,6 @@ def display_conversation(project_id, user='student', section_title='', section_t
             except Exception as e:
                 logger.error(f"Error deleting temporary file: {str(e)}")
         
-        logger.info(fr'RESPONSE: {response['content']}')
-        response = parse_ai_response(response['content'])
-        logger.info(fr'PARSED RESPONSE: {response}')
         st.session_state.messages.append({"role": "assistant", "content": rf"{response['message']}"})    
         st.session_state.email_sent = False
         # Display the response letter by letter

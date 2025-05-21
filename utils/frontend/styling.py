@@ -38,26 +38,25 @@ def load_style():
     """
     # Inject CSS
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
-    if 'role' in st.session_state and st.session_state.role == 'student':
-        css = """
-        <style>
-          /* Outer sidebar container */
-          section[data-testid="stSidebar"] {
-            width: 300px !important;
-          }
-          /* Expanded */
-          section[data-testid="stSidebar"] .css-ng1t4o {
-            width: 300px !important;
-          }
-          /* Collapsed */
-          section[data-testid="stSidebar"] .css-1d391kg {
-            width: 300px !important;
-          }
-        </style>
-        """
-    
-        # Inject CSS
-        st.markdown(f'<style>{css}', unsafe_allow_html=True)
+    css = """
+    <style>
+        /* Outer sidebar container */
+        section[data-testid="stSidebar"] {
+        width: 300px !important;
+        }
+        /* Expanded */
+        section[data-testid="stSidebar"] .css-ng1t4o {
+        width: 300px !important;
+        }
+        /* Collapsed */
+        section[data-testid="stSidebar"] .css-1d391kg {
+        width: 300px !important;
+        }
+    </style>
+    """
+
+    # Inject CSS
+    st.markdown(f'<style>{css}', unsafe_allow_html=True)
 
 def scroll_to(element_id):
     components.html(f'''

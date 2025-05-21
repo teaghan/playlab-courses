@@ -11,7 +11,7 @@ def add_assistant_dialog(course_code, custom_assistants):
     """
     st.markdown("### Create New Assistant")
     st.markdown("#### Assistant Name")
-    assistant_name = st.text_input("Assistant Name", label_visibility='collapsed', placeholder="e.g. Math Helper")
+    assistant_name = st.text_input("Assistant Name", label_visibility='collapsed', placeholder="e.g. Assignment Helper")
     st.markdown("#### Assistant Instructions")
     assistant_instructions = streamlit_lexical(
         value=open_config()['playlab']['student_assistant_default_system_prompt'],

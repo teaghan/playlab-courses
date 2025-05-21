@@ -14,6 +14,7 @@ class Section:
     section_type: str
     order: int
     unit_id: str
+    unit_title: str
     assistant_id: Optional[str] = None
     assistant_name: Optional[str] = None
     assistant_instructions: Optional[str] = None
@@ -26,6 +27,7 @@ class SectionSummary:
     order: int
     section_type: str
     unit_id: str
+    unit_title: str
 
 @dataclass
 class Unit:
@@ -78,7 +80,8 @@ class CourseManager:
                     overview=section_data.get('overview', ''),
                     order=section_data.get('order', 0),
                     section_type=section_data.get('section_type', 'content'),
-                    unit_id=unit_id
+                    unit_id=unit_id,
+                    unit_title=unit_data.get('title', '')
                 )
                 sections.append(section)
             
@@ -154,6 +157,14 @@ class CourseManager:
                         break
         
         # Create and return Section object
+        # Get unit title from course units in session state if available
+        unit_title = ''
+        if 'course_units' in st.session_state:
+            for unit in st.session_state.course_units:
+                if unit.id == unit_id:
+                    unit_title = unit.title
+                    break
+
         return Section(
             id=section_id,
             title=section_data.get('title', ''),
@@ -165,7 +176,8 @@ class CourseManager:
             assistant_id=assistant_id,
             assistant_name=assistant_name,
             assistant_instructions=assistant_instructions,
-            unit_id=unit_id
+            unit_id=unit_id,
+            unit_title=unit_title
         )
     
     def initialize_section(course_code: str, unit_id: str, section_id: str):
