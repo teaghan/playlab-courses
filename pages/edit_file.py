@@ -61,51 +61,64 @@ new_file = st.file_uploader(
 if st.button("Save Changes", type="primary", use_container_width=True):
     try:
         # Update section details
-        if update_section(
+        section_updated = update_section(
             course_code=course_code,
             unit_id=unit_id,
             section_id=section.id,
             title=section_title,
             overview=section_overview
-        ):
+        )
+        if section_updated:
             # Update the assistant for this section
-            if update_section_assistant(
+            assistant_updated = update_section_assistant(
                 course_code=course_code,
                 unit_id=unit_id,
                 section_id=section.id,
                 assistant_id=selected_assistant_id
-            ):
-                # If a new file was uploaded, handle the file update
-                if new_file:
-                    # Delete old file
-                    if section.file_path:
-                        # Extract filename from path
-                        old_file_name = section.file_path.split('/')[-1]
-                        delete_content_file(course_code, old_file_name)
-                    
-                    # Upload new file
-                    new_file_path = upload_content_file(new_file, course_code, f"{section.id}.pdf")
-                    if new_file_path:
-                        # Update section with new file path
-                        update_section(
-                            course_code=course_code,
-                            unit_id=unit_id,
-                            section_id=section.id,
-                            file_path=new_file_path
-                        )
-                        st.switch_page('pages/edit_course.py')
-                    else:
-                        st.error("Failed to upload new file")
+            )
+            if assistant_updated and new_file:
+                # Delete old file
+                if section.file_path:
+                    # Extract filename from path
+                    old_file_name = section.file_path.split('/')[-1]
+                    delete_content_file(course_code, old_file_name)
+                
+                # Upload new file
+                new_file_path = upload_content_file(new_file, course_code, f"{section.id}.pdf")
+                if new_file_path:
+                    # Update section with new file path
+                    file_updated = update_section(
+                        course_code=course_code,
+                        unit_id=unit_id,
+                        section_id=section.id,
+                        file_path=new_file_path
+                    )
                 else:
-                    st.session_state.section_updated = True
-                    st.rerun()
+                    file_updated = False
             else:
-                st.error("Failed to update section assistant")
+                file_updated = None
         else:
-            st.error("Failed to update section")
+            assistant_updated = False
+            file_updated = None
     except Exception as e:
         logger.error(f"Error updating section: {str(e)}")
         st.error(f"Error updating section: {str(e)}")
+        section_updated = False
+        assistant_updated = False
+        file_updated = None
+
+if not section_updated:
+    st.error("Failed to update section")
+elif not assistant_updated:
+    st.error("Failed to update section assistant")
+elif new_file:
+    if file_updated:
+        st.switch_page('pages/edit_course.py')
+    else:
+        st.error("Failed to upload new file")
+else:
+    st.session_state.section_updated = True
+    st.rerun()
 
 if st.session_state.get('section_updated', False):
     st.success("Section updated successfully!")

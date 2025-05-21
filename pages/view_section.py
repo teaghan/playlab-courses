@@ -17,51 +17,60 @@ from utils.frontend.download_section import download_dialog
 from utils.frontend.student_assistant import display_student_assistant
 from utils.frontend.menu import menu
 
-try:
-    # Get section ID from query params
-    params = st.query_params
-    if params and 'section_loaded' not in st.session_state:
-        section_id = next(iter(params))
-        sm.clear_user_context()
-        sm.initialize_section_from_id(section_id)
+# Get section ID from query params
+params = st.query_params
+if params and 'section_loaded' not in st.session_state:
+    section_id = next(iter(params))
+    sm.clear_user_context()
+    try:
+        section_loaded = sm.initialize_section_from_id(section_id)
+    except Exception as e:
+        catch_error()
+        section_loaded = False
+    
+    if section_loaded:
         st.session_state['section_loaded'] = True
     
     # Check user state
     sm.check_state(check_user=False)
 
-    # Display page buttons
-    menu()
+# Display page buttons
+menu()
 
-    # Get section from session state
-    section = st.session_state.get("section")
-    if section is None:
-        st.switch_page('pages/enter_course.py')
+# Get section from session state
+section = st.session_state.get("section")
+if section is None:
+    st.switch_page('pages/enter_course.py')
 
-    # Navigation
-    if st.columns((1, 3))[0].button('Return to Course', use_container_width=True, type='primary'):
-        st.switch_page('pages/view_course.py')
+# Navigation
+if st.columns((1, 3))[0].button('Return to Course', use_container_width=True, type='primary'):
+    st.switch_page('pages/view_course.py')
 
-    # Display section content based on type
-    if section.section_type == 'content':
-        # Add download button
-        if st.columns((3,1))[1].button("Download .docx", use_container_width=True, type="secondary"):
+# Display section content based on type
+if section.section_type == 'content':
+    # Add download button
+    if st.columns((3,1))[1].button("Download .docx", use_container_width=True, type="secondary"):
+        try:
             download_dialog(
                 section_type='content',
                 section_title=section.title,
                 content=section.content
             )
-        if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
-            display_student_assistant()
-        st.markdown(section.content or '', unsafe_allow_html=True)
-    elif section.section_type == 'file':
-        if st.session_state.get('pdf_content'):
-            # Add download button
-            if st.columns((3,1))[1].button("Download PDF", use_container_width=True, type="secondary"):
-                # Sanitize the section title for use as a filename
-                safe_title = re.sub(r'[^\w\-_.]', '_', section.title)
-                temp_filename = f"{safe_title}.pdf"
-                
-                # Create temporary file only when downloading
+        except Exception as e:
+            catch_error()
+    if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
+        display_student_assistant()
+    st.markdown(section.content or '', unsafe_allow_html=True)
+elif section.section_type == 'file':
+    if st.session_state.get('pdf_content'):
+        # Add download button
+        if st.columns((3,1))[1].button("Download PDF", use_container_width=True, type="secondary"):
+            # Sanitize the section title for use as a filename
+            safe_title = re.sub(r'[^\w\-_.]', '_', section.title)
+            temp_filename = f"{safe_title}.pdf"
+            
+            # Create temporary file only when downloading
+            try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', prefix=f"{safe_title}_") as tmp_file:
                     tmp_file.write(st.session_state.pdf_content)
                     tmp_path = tmp_file.name
@@ -77,12 +86,16 @@ try:
                             os.unlink(tmp_path)
                         except:
                             pass
-            if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
-                display_student_assistant()
-            # Display PDF
+            except Exception as e:
+                catch_error()
+                
+        if st.session_state.section.assistant_instructions is not None and st.session_state.on_mobile:
+            display_student_assistant()
+        # Display PDF
+        try:
             pdf_viewer(st.session_state.pdf_content)
-        else:
-            st.error("File content not found")
-
-except Exception as e:
-    catch_error() 
+        except Exception as e:
+            catch_error()
+            st.error("Error displaying PDF")
+    else:
+        st.error("File content not found") 

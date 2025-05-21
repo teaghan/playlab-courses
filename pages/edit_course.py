@@ -32,11 +32,14 @@ if not course_code:
 
 # Initialize course data
 try:
-    if not sm.initialize_course(course_code):
-        st.error("Course not found")
-        st.switch_page("app.py")
+    course_init = sm.initialize_course(course_code)
 except:
     catch_error()
+    course_init = False
+
+if not course_init:
+    st.error("Course not found")
+    st.switch_page("app.py")
 
 # Display course header
 st.markdown(f"<h1 style='text-align: center; color: grey;'>{st.session_state.course_name}</h1>", 
