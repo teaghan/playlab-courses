@@ -31,8 +31,8 @@ if params and 'section_loaded' not in st.session_state:
     if section_loaded:
         st.session_state['section_loaded'] = True
     
-    # Check user state
-    sm.check_state(check_user=False)
+# Check user state
+sm.check_state(check_user=False)
 
 # Display page buttons
 menu()

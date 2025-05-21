@@ -24,9 +24,15 @@ with st.columns((1, 6, 1))[1]:
 
     with st.container(border=True):
 
+        # Check if user email is available
+        collect_email = False
+        if 'user_email' not in st.session_state or st.session_state.user_email is None:
+            collect_email = True
+
         request = st.empty()
         text = st.empty()
-        email = st.empty()
+        if collect_email:
+            email = st.empty()
         button = st.empty()
 
         request.markdown("""
@@ -35,7 +41,10 @@ Please send us a message if you:
 - Want to request a feature
 - Found a bug to report
         """)
-        user_email = email.text_input("Email (optional):", value="", placeholder='Your email address')
+        if collect_email:
+            user_email = email.text_input("Email (optional):", value="", placeholder='Your email address')
+        else:
+            user_email = st.session_state.user_email
         message = text.text_area("Message:", value="", height=100, 
                                  key="1", placeholder='👋 All questions and suggestions welcome here!',  label_visibility='collapsed')
 
@@ -48,7 +57,8 @@ Please send us a message if you:
                 else:
                     st.success("Message sent! Thank you for your feedback 🙏")
                 request.empty()
-                email.empty()
+                if collect_email:
+                    email.empty()
                 text.empty()
                 button.empty()
             except Exception as e:
