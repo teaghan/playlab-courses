@@ -1,6 +1,5 @@
 import streamlit as st
 from st_equation_editor import mathfield
-import json
 import tempfile
 from playlab_api import PlaylabApp
 import time
@@ -9,8 +8,8 @@ from utils.frontend.styling import button_style
 from utils.core.logger import logger
 from tempfile import NamedTemporaryFile
 import os
-import re
-import traceback
+from utils.core.error_handling import catch_error
+
 custom_button = button_style()
 
 # Load model
@@ -82,7 +81,7 @@ def message_fn(message, role='student', section_title='', section_type='content'
         "message": """{message}""",
         "course_name": """{st.session_state.get('course_name', '')}""",
         "student_grade": """{st.session_state.get('grade_level', '')}""",
-        "unit_title": """{st.session_state.get('unit_title', '')}""",
+        "unit_title": """{st.session_state.section.unit_title}""",
         "module_title": """{section_title}""",
         "content": """{st.session_state.get("editor_content", "")}""",
         "template_content": """{st.session_state.get("template_content", "")}"""
@@ -99,7 +98,7 @@ def message_fn(message, role='student', section_title='', section_type='content'
                 "message": """{message}""",
                 "student_grade": """{st.session_state.get('grade_level', '')}""",
                 "course_name": """{st.session_state.get('course_name', '')}""",
-                "unit_title": """{st.session_state.get('unit_title', '')}""",
+                "unit_title": """{st.session_state.section.unit_title}""",
                 "module_title": """{section_title}""",
                 "teacher_instructions": """{st.session_state.section.assistant_instructions}"""
                 }}'''
@@ -108,7 +107,7 @@ def message_fn(message, role='student', section_title='', section_type='content'
                 "message": """{message}""",
                 "student_grade": """{st.session_state.get('grade_level', '')}""",
                 "course_name": """{st.session_state.get('course_name', '')}""",
-                "unit_title": """{st.session_state.get('unit_title', '')}""",
+                "unit_title": """{st.session_state.section.unit_title}""",
                 "module_title": """{section_title}""",
                 "content": """{st.session_state.section.content}""",
                 "teacher_instructions": """{st.session_state.section.assistant_instructions}"""
@@ -161,7 +160,7 @@ def parse_ai_response(text: str) -> dict:
     return result
 
 # Display conversation
-def display_conversation(project_id, user='student', section_title='', section_type='content'):
+def display_conversation(project_id, user='student', section_title='', section_type='content', max_retries=3):
     # Avatar images
     avatar = {"user": f"https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/{user}_avatar.png",
             "assistant": "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/ai_avatar.png"}
@@ -316,17 +315,26 @@ def display_conversation(project_id, user='student', section_title='', section_t
 
         # Get the response from the tutor
         prompt = message_fn(prompt, user, section_title, section_type)
-        while True:
+
+        retries = 0
+        while retries < max_retries:
             with st.session_state.chat_spinner, st.spinner(f"Thinking..."):
-                logger.info(f'PROMPT:\n\n{prompt}\n\n')
-                response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
-                logger.info(fr'RESPONSE: {response['content']}')
-                response = parse_ai_response(response['content'])
-                logger.info(fr'PARSED RESPONSE: {response}')
+                try:
+                    logger.info(f'PROMPT:\n\n{prompt}\n\n')
+                    response = st.session_state.ai_app.send_message(prompt, file_path=file_path)
+                    logger.info(fr'RESPONSE: {response['content']}')
+                    response = parse_ai_response(response['content'])
+                    logger.info(fr'PARSED RESPONSE: {response}')
+                except:
+                    catch_error()
                 # Check if "message" key is present
                 if 'message' in response and response['message']:
                     break
+                retries += 1
         
+        # Set default error message if all retries failed
+        if retries == max_retries:
+            response['message'] = 'I am sorry, I am having trouble producing a response right now. Please try again later.'
         # Clean up the temporary file after we're done with it
         if temp_file and os.path.exists(temp_file.name):
             try:
