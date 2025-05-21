@@ -3,7 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from utils.core.config import open_config
 
-def send_email(subject, body, sender, sender_password, recipient, sender_name=None, html=False):
+def send_email(subject, body, sender, sender_password, recipient, sender_name=None, html=False, headers=None):
     if html:
         msg = MIMEText(body, 'html')
     else:
@@ -14,42 +14,31 @@ def send_email(subject, body, sender, sender_password, recipient, sender_name=No
     else:
         msg['From'] = sender
     msg['To'] = recipient
+    
+    # Add any additional headers
+    if headers:
+        for key, value in headers.items():
+            msg[key] = value
+            
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
        smtp_server.login(sender, sender_password)
        smtp_server.sendmail(sender, recipient, msg.as_string())
 
 def send_access_code(access_code, user_email):
     """
-    Send an access code email to the user.
-    
-    Args:
-        access_code (str): The 6-digit access code to send
-        user_email (str): The recipient's email address
+    Send an access code email to the user, with both plain-text and HTML formats.
     """
-    sender = open_config()['email']['email']
+    config = open_config()['email']
+    sender = config['email']
     sender_password = os.environ['EMAIL_PASSWORD']
     subject = 'OpenCource: Your Access Code'
-    
-    body = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #2c3e50;">Welcome to OpenCource! 👋</h2>
-        
-        <p style="color: #34495e; font-size: 16px; line-height: 1.5;">
-            Your access code is: <strong style="font-size: 24px; color: #2c3e50;">{access_code}</strong>
-        </p>
-        
-        <p style="color: #34495e; font-size: 16px; line-height: 1.5;">
-            Please return to your previous tab to verify your access code.
-        </p>
-        
-        <div style="margin-top: 30px; color: #7f8c8d; border-top: 1px solid #eee; padding-top: 20px;">
-            <p style="margin: 0;">Best regards,</p>
-            <p style="margin: 5px 0;">OpenCource Team 🎓</p>
-        </div>
-    </div>
-    """
-    
-    send_email(subject, body, sender, sender_password, user_email, sender_name='OpenCource', html=True)
+
+    # Plain-text fallback
+    body = f"Welcome to OpenCource! \n\n\tYour access code is: {access_code}\n\n" \
+                 "Please return to your previous tab to verify your access code.\n\n" \
+                 "Best regards,\nOpenCource Team"
+
+    send_email(subject, body, sender, sender_password, user_email, html=False, sender_name='OpenCource')
 
 def send_error_email(traceback, session_state):
     """
