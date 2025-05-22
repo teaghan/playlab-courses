@@ -93,7 +93,7 @@ elif section.section_type == 'file':
             display_student_assistant()
         # Display PDF
         try:
-            pdf_viewer(st.session_state.pdf_content)
+            pdf_viewer(st.session_state.pdf_content, pages_vertical_spacing=15)
         except Exception as e:
             catch_error()
             st.error("Error displaying PDF")
