@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_sortables import sort_items
 
 def create_sortable_list(items, direction="vertical", key=None):
     """

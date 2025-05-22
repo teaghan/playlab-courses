@@ -1,11 +1,11 @@
-streamlit==1.43.1
+streamlit==1.45.1
 streamlit-equation-editor==0.3.6
-streamlit-sortables==0.3.1
 streamlit_lexical==1.1
 streamlit-browser-engine==0.0.3
 streamlit-pdf-viewer==0.0.23
 streamlit_extras==0.5.0
 st-copy-to-clipboard==0.1.6
+streamlit-draggable-list==0.0.1
 playlab-api==0.1.2
 s3fs==2025.3.0
 psutil==5.9.6
@@ -14,4 +14,3 @@ markdowntodocx==0.1.6.1
 python-docx==1.1.2
 latex2mathml==3.77.0
 PyYAML==6.0.1
-streamlit-draggable-list==0.0.1
