@@ -331,6 +331,8 @@ def display_conversation(project_id, user='student', section_title='', section_t
                 if 'message' in response and response['message']:
                     break
                 retries += 1
+                prompt = 'There was an issue with the previous response. Perhaps the parsing was not able to interpret the response correctly. Please try again. Write your response to the user again.'
+                
         
         # Set default error message if all retries failed
         if retries == max_retries:

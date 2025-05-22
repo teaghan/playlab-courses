@@ -127,11 +127,10 @@ def teacher_menu():
 
     # Create sidebar navigation bar
     else:
+        st.markdown(logo_html, unsafe_allow_html=True)
         # Navigation links
         for idx, (page_name, page_path) in enumerate(pages.items()):
             with st.sidebar:
-                st.markdown(logo_html, unsafe_allow_html=True)
-                #st.page_link("app.py", label=f"![Logo](data:image/png;base64,{img_base64})", use_container_width=True)
                 st.markdown('----')
                 if page_name == "Log Out":
                     if st.button(page_name, use_container_width=True, type="primary"):
