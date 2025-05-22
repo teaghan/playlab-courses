@@ -127,11 +127,11 @@ def teacher_menu():
 
     # Create sidebar navigation bar
     else:
-        st.markdown(logo_html, unsafe_allow_html=True)
-        # Navigation links
-        for idx, (page_name, page_path) in enumerate(pages.items()):
-            with st.sidebar:
-                st.markdown('----')
+        with st.sidebar:
+            st.markdown(logo_html, unsafe_allow_html=True)
+            st.markdown('----')
+            # Navigation links
+            for idx, (page_name, page_path) in enumerate(pages.items()):                
                 if page_name == "Log Out":
                     if st.button(page_name, use_container_width=True, type="primary"):
                         logout()

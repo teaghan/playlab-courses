@@ -17,7 +17,7 @@ def display_student_assistant():
     """):
         po = st.popover("💬 Ask a question", 
                         help="Ask AI about this section",
-                        use_container_width=True)
+                        use_container_width=not st.session_state.on_mobile)
         with po:
             display_conversation(open_config()['playlab']['student_assistant'], user='student', 
                                 section_title=st.session_state.section.title,
