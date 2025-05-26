@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import yaml
+from utils.core.logger import logger
 
 def write_secrets_from_env():
     secrets_path = Path(".streamlit/secrets.toml")
@@ -10,6 +11,8 @@ def write_secrets_from_env():
         data = yaml.safe_load(file)
 
     domain_url = data['url']
+
+    logger.info(f"Writing secrets to {secrets_path}")
 
     with secrets_path.open("w") as f:
         f.write("[auth]\n")
@@ -31,6 +34,8 @@ def write_secrets_from_env():
         f.write(f'client_secret = "{os.getenv("STREAMLIT_AUTH_AUTH0_CLIENT_SECRET", "")}"\n')
         f.write(f'server_metadata_url = "{os.getenv("STREAMLIT_AUTH_AUTH0_METADATA_URL", "")}"\n')
         f.write('client_kwargs = { prompt = "login" }\n')
+
+    logger.info(f"Secrets written to {secrets_path}")
 
 if __name__ == "__main__":
     write_secrets_from_env()

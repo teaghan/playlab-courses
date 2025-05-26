@@ -10,6 +10,9 @@ from utils.data.session_manager import SessionManager as sm
 # If necessary, load tutor data, user data, styling, memory manager, etc.
 sm.check_state(user_reset=False)
 
+import os
+print(os.listdir('.streamlit'))
+
 if hasattr(st.user, 'is_logged_in') and st.user.is_logged_in:
     sm.initialize_user(st.user.email)
     st.session_state['authentication_status'] = True
