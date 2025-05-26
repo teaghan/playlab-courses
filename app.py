@@ -1,3 +1,4 @@
+from utils.frontend.auth import teacher_login_dialog
 import streamlit as st
 
 # Page info
@@ -8,6 +9,11 @@ from utils.data.session_manager import SessionManager as sm
 
 # If necessary, load tutor data, user data, styling, memory manager, etc.
 sm.check_state(user_reset=False)
+
+if hasattr(st.user, 'is_logged_in') and st.user.is_logged_in:
+    sm.initialize_user(st.user.email)
+    st.session_state['authentication_status'] = True
+    st.switch_page("pages/dashboard.py")
 
 params = st.query_params
 # Check for both short format (?astro-12) and long format (?code=astro-12)
@@ -35,7 +41,7 @@ if course_code:
 col1, col2, col3 = st.columns((1,1,1))
 col2.image(open_config()['images']['logo_full'], use_container_width=True)
 
-st.markdown("----")
+st.markdown("----")  
 
 # Select role
 col1, col2, col3 = st.columns((1.4, 2, 1.4))
@@ -45,7 +51,10 @@ with col2:
         st.switch_page("pages/enter_course.py")
     if st.button(f"Teachers", use_container_width=True):
         st.session_state.role = 'teacher'
-        if st.session_state['authentication_status']:
+        if hasattr(st.user, 'is_logged_in') and st.user.is_logged_in:
+            sm.initialize_user(st.user.email)
+            st.session_state['authentication_status'] = True
             st.switch_page("pages/dashboard.py")
         else:
-            st.switch_page("pages/login.py")
+            teacher_login_dialog()
+            #st.switch_page("pages/login.py")

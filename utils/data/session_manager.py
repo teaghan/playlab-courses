@@ -92,6 +92,7 @@ class SessionManager:
     @staticmethod
     def check_state(check_user=False, reset_chat=False, user_reset=False, reset_course=False):
         """Check and initialize session state"""
+
         if "authentication_status" not in st.session_state:
             st.session_state['authentication_status'] = False
         
