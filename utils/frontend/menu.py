@@ -6,9 +6,8 @@ from utils.frontend.student_assistant import display_student_assistant
 from utils.core.image_paths import get_image_base64
 
 def logout():
-    st.logout()
     sm.clear_user_context()
-    st.switch_page("app.py")
+    st.logout()
 
 def teacher_menu_old():
     st.sidebar.page_link("pages/dashboard.py", label="Dashboard")
