@@ -101,7 +101,7 @@ def teacher_menu():
 
     # Format image as base64 and create linked logo
     parent_dir = os.path.dirname(os.path.abspath(__file__))
-    image_path = os.path.join(parent_dir, "../../images/opencourse_logo_full.png")
+    image_path = os.path.join(parent_dir, "../../images/opencourse_logo2_full.png")
     img_base64 = get_image_base64(image_path)
     logo_html = f"""
         <a href="." target="_self">
