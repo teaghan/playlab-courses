@@ -1,14 +1,14 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="OpenCources",
+    page_title="OpenCourses",
     layout="wide"
 )
 
 usage_content = """
-# How to Use OpenCources
+# How to Use OpenCourses
 
-Welcome to OpenCources! This guide will walk you through how to make the most of our platform, whether you're a teacher creating content or a student accessing course materials.
+Welcome to OpenCourses! This guide will walk you through how to make the most of our platform, whether you're a teacher creating content or a student accessing course materials.
 
 ### Creating Your First Course
    - Click "New Course" from your dashboard

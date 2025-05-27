@@ -2,7 +2,7 @@ from utils.frontend.auth import teacher_login_dialog
 import streamlit as st
 
 # Page info
-st.set_page_config(page_title="OpenCource", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", layout="wide")
+st.set_page_config(page_title="OpenCourse", page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", layout="wide")
 
 from utils.core.config import open_config
 from utils.data.session_manager import SessionManager as sm

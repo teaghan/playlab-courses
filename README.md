@@ -1,11 +1,11 @@
-# Playlab Courses
+# OpenCourse
 
 A platform that allows educators to create AI-enhanced course websites with built-in intelligent assistants for both teachers and students.
 
 ## Live Access
 
-- **Main Platform**: [playlab-courses.com](https://opencources.com)
-- **Example Course**: [playlab-courses.com?astro-12](https://opencources.com?astro-12)
+- **Main Platform**: [app.opencourse.ca](https://app.opencourse.ca)
+- **Example Course**: [app.opencourse.ca?astro-12](https://app.opencourse.ca?astro-12)
 
 ### Key Features
 

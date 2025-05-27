@@ -31,14 +31,14 @@ def send_access_code(access_code, user_email):
     config = open_config()['email']
     sender = config['email']
     sender_password = os.environ['EMAIL_PASSWORD']
-    subject = 'OpenCource: Your Access Code'
+    subject = 'OpenCourse: Your Access Code'
 
     # Plain-text fallback
-    body = f"Welcome to OpenCource! \n\n\tYour access code is: {access_code}\n\n" \
+    body = f"Welcome to OpenCourse! \n\n\tYour access code is: {access_code}\n\n" \
                  "Please return to your previous tab to verify your access code.\n\n" \
-                 "Best regards,\nOpenCource Team"
+                 "Best regards,\nOpenCourse Team"
 
-    send_email(subject, body, sender, sender_password, user_email, html=False, sender_name='OpenCource')
+    send_email(subject, body, sender, sender_password, user_email, html=False, sender_name='OpenCourse')
 
 def send_error_email(traceback, session_state):
     """
@@ -52,7 +52,7 @@ def send_error_email(traceback, session_state):
     recipient = open_config()['email']['email']
     sender_password = os.environ['EMAIL_PASSWORD']
     
-    subject = 'OpenCource: Error Notification 🚨'
+    subject = 'OpenCourse: Error Notification 🚨'
     
     # Format session state for better readability
     session_state_str = '\n'.join([f"{k}: {v}" for k, v in session_state.items()])
@@ -77,19 +77,19 @@ def send_error_email(traceback, session_state):
         
         <div style="margin-top: 30px; color: #7f8c8d; border-top: 1px solid #eee; padding-top: 20px;">
             <p style="margin: 0;">This is an automated error notification.</p>
-            <p style="margin: 5px 0;">OpenCource System 🎓</p>
+            <p style="margin: 5px 0;">OpenCourse System 🎓</p>
         </div>
     </div>
     """
     
-    send_email(subject, body, sender, sender_password, recipient, sender_name='OpenCource System', html=True)
+    send_email(subject, body, sender, sender_password, recipient, sender_name='OpenCourse System', html=True)
 
 def send_email_support(user_email, message):
     sender = open_config()['email']['email']
     recipient = open_config()['email']['email']
     sender_password = os.environ['EMAIL_PASSWORD']
 
-    subject = 'OpenCource: User Support'
+    subject = 'OpenCourse: User Support'
     #message = message.replace('\n', '<br>')
     body = 'User: ' + user_email + '\n\n' + message
     send_email(subject, body, sender, sender_password, recipient)

@@ -4,7 +4,7 @@ from utils.core.config import domain_url
 from utils.core.logger import logger
 
 def modify_index():
-    app_title = "OpenCource"
+    app_title = "OpenCourse"
     app_url = domain_url()
     app_description = "Teachers building AI-powered course materials."
     app_image = "https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png"
