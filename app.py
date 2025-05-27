@@ -12,7 +12,7 @@ sm.check_state(user_reset=False)
 
 import os
 print(os.listdir('.streamlit'))
-
+print(st.secrets.auth)
 if hasattr(st.user, 'is_logged_in') and st.user.is_logged_in:
     sm.initialize_user(st.user.email)
     st.session_state['authentication_status'] = True
