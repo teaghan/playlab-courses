@@ -20,6 +20,14 @@ class Section:
     assistant_instructions: Optional[str] = None
 
 @dataclass
+class SectionSmall:
+    id: str
+    title: str
+    section_type: str
+    unit_id: str
+    unit_title: str
+
+@dataclass
 class SectionSummary:
     id: str
     title: str

@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 import os
 from utils.core.error_handling import catch_error
 from utils.core.config import open_config
+import traceback
 
 custom_button = button_style()
 
@@ -369,7 +370,7 @@ def display_conversation(project_id, user='student', section_title='', section_t
 
     return response
 
-def moderate_content(section_title, section_type='content', max_retries=3):
+def moderate_content(section_title, section_type='content', max_retries=3, file_obj=None):
     """
     Moderates content for appropriateness using an AI model.
     
@@ -377,6 +378,7 @@ def moderate_content(section_title, section_type='content', max_retries=3):
         section_title (str): Title of the section being moderated
         section_type (str): Type of section ('content' or 'file')
         max_retries (int): Maximum number of retries for failed attempts
+        file_obj (FileUpload, optional): File object to moderate for file sections
         
     Returns:
         tuple: (bool, str) where bool indicates if content is appropriate,
@@ -400,12 +402,14 @@ def moderate_content(section_title, section_type='content', max_retries=3):
             while retries < max_retries:
                 try:
                     if section_type == 'file':
-                        if 'pdf_content' not in st.session_state:
-                            return False, "Error: No PDF content found to moderate"
-                            
+                        # Read the file content
+                        file_content = file_obj.read()
+                        file_obj.seek(0)  # Reset file pointer for future reads
+                        
                         # Create temporary file for PDF content
                         with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmp_file:
-                            tmp_file.write(st.session_state['pdf_content'])
+                            tmp_file.write(file_content)
+                            tmp_file.flush()  # Ensure all data is written
                             
                             # Tell the moderator that content is in PDF
                             content = "The content is attached as a PDF file to this message."
@@ -443,6 +447,8 @@ def moderate_content(section_title, section_type='content', max_retries=3):
 
                 except Exception as e:
                     if retries == max_retries - 1:
+                        # print traceback
+                        traceback.print_exc()
                         logger.error(f"Error in moderation attempt {retries + 1}: {str(e)}")
                         return False, f"Error during moderation: {str(e)}"
                     retries += 1

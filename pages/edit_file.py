@@ -7,6 +7,7 @@ from utils.core.logger import logger
 from utils.data.session_manager import SessionManager as sm
 from utils.frontend.assistants import display_assistant_selection
 from utils.core.error_handling import catch_error
+from utils.frontend.playlab import moderate_content
 st.set_page_config(page_title="Edit Section", 
                    page_icon="https://raw.githubusercontent.com/teaghan/playlab-courses/main/images/favicon.png", 
                    layout="wide", initial_sidebar_state='collapsed')
@@ -57,6 +58,9 @@ new_file = st.file_uploader(
     label_visibility='collapsed'
 )
 
+success_banner = st.empty()
+st.session_state.moderator_spinner = st.container()
+
 # Save button
 if st.button("Save Changes", type="primary", use_container_width=True):
     try:
@@ -84,32 +88,43 @@ if st.button("Save Changes", type="primary", use_container_width=True):
             catch_error()
         
         if assist_updated:
+            is_appropriate = True
             # If a new file was uploaded, handle the file update
             if new_file:
-                # Delete old file
-                if section.file_path:
-                    # Extract filename from path
-                    old_file_name = section.file_path.split('/')[-1]
-                    delete_content_file(course_code, old_file_name)
-                    
-                # Upload new file
-                new_file_path = upload_content_file(new_file, course_code, f"{section.id}.pdf")
-                if new_file_path:
-                    # Update section with new file path
-                    update_section(
-                        course_code=course_code,
-                        unit_id=unit_id,
-                        section_id=section.id,
-                        file_path=new_file_path
-                    )
-                    st.switch_page('pages/edit_course.py')
+                # First, moderate the file content
+                is_appropriate, feedback = moderate_content(
+                    section_title=section_title,
+                    section_type='file',
+                    file_obj=new_file
+                )
+                if not is_appropriate:
+                    success_banner.error(f'Your file could not be saved. {feedback}')
                 else:
-                    st.error("Failed to upload new file")
-        st.session_state.section_updated = True
-        st.rerun()
+                    # Delete old file
+                    if section.file_path:
+                        # Extract filename from path
+                        old_file_name = section.file_path.split('/')[-1]
+                        delete_content_file(course_code, old_file_name)
+                        
+                    # Upload new file
+                    new_file_path = upload_content_file(new_file, course_code, f"{section.id}.pdf")
+                    if new_file_path:
+                        # Update section with new file path
+                        update_section(
+                            course_code=course_code,
+                            unit_id=unit_id,
+                            section_id=section.id,
+                            file_path=new_file_path
+                        )
+                        st.switch_page('pages/edit_course.py')
+                    else:
+                        st.error("Failed to upload new file")
+        if is_appropriate:
+            st.session_state.section_updated = True
+            st.rerun()
 
 if st.session_state.get('section_updated', False):
-    st.success("Section updated successfully!")
+    success_banner.success("Section updated successfully!")
     st.session_state.section_updated = False
 
 # Display current PDF

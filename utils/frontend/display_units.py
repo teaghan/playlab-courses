@@ -6,6 +6,8 @@ from utils.frontend.clipboard import to_clipboard
 from utils.data.aws import create_unit
 from utils.core.config import domain_url
 from st_draggable_list import DraggableList
+from utils.frontend.playlab import moderate_content
+from utils.data.course_manager import SectionSmall
 
 def display_units(course_code: str, allow_editing: bool = True):
     """Display units and sections for a course with management options"""
@@ -316,31 +318,49 @@ def add_section_dialog(course_code: str, unit_id: str):
                     current_unit = next((u for u in st.session_state.course_units if u.id == unit_id), None)
                     next_order = len(current_unit.sections) + 1 if current_unit and current_unit.sections else 1
                     
-                    # Upload file to S3
-                    file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
-                    if file_path:
-                        # Create the section with file
-                        if create_section(
-                            course_code=course_code,
-                            unit_id=unit_id,
-                            section_id=section_id,
-                            title=st.session_state.new_section_name,
-                            overview=st.session_state.new_section_overview,
-                            order=next_order,
-                            section_type="file",
-                            file_path=file_path
-                        ):
-                            
-                            st.session_state.add_section_step = 1
-                            st.session_state.new_section_name = None
-                            st.session_state.new_section_overview = None
-                            # Initialize section in session state
-                            sm.initialize_section(unit_id, section_id)
-                            st.session_state["section_file_path"] = st.session_state.section.file_path
-                            st.session_state['pdf_content'] = get_file_content(st.session_state.section.file_path)
-                            st.switch_page('pages/edit_file.py')
-                        else:
-                            st.session_state.add_section_banner.error("Failed to upload file")
+                    # Moderator
+                    st.session_state.moderator_spinner = st.container()
+                    st.session_state.section = SectionSmall(
+                    id=section_id,
+                    title=st.session_state.new_section_name,
+                    section_type='file',
+                    unit_id=unit_id,
+                    unit_title=current_unit.title
+                )
+                    is_appropriate, feedback = moderate_content(
+                        section_title=st.session_state.new_section_name,
+                        section_type='file',
+                        file_obj=dropped_file
+                    )
+                    
+                    if not is_appropriate:
+                        st.session_state.add_section_banner.error(f'Your file could not be saved. {feedback}')
+                    else:
+                        # Upload file to S3
+                        file_path = upload_content_file(dropped_file, course_code, f"{section_id}.pdf")
+                        if file_path:
+                            # Create the section with file
+                            if create_section(
+                                course_code=course_code,
+                                unit_id=unit_id,
+                                section_id=section_id,
+                                title=st.session_state.new_section_name,
+                                overview=st.session_state.new_section_overview,
+                                order=next_order,
+                                section_type="file",
+                                file_path=file_path
+                            ):
+                                
+                                st.session_state.add_section_step = 1
+                                st.session_state.new_section_name = None
+                                st.session_state.new_section_overview = None
+                                # Initialize section in session state
+                                sm.initialize_section(unit_id, section_id)
+                                st.session_state["section_file_path"] = st.session_state.section.file_path
+                                st.session_state['pdf_content'] = get_file_content(st.session_state.section.file_path)
+                                st.switch_page('pages/edit_file.py')
+                            else:
+                                st.session_state.add_section_banner.error("Failed to upload file")
     
     if st.button("Cancel", use_container_width=True):
         st.session_state.new_section_name = None
