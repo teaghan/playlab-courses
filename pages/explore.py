@@ -16,11 +16,11 @@ try:
     from utils.frontend.menu import menu
     menu()
 
-    # Display logo
-    col1, col2, col3 = st.columns((1,1,1))
-    col2.image(open_config()['images']['logo_full'], use_container_width=True)
-
-    st.markdown("----")
+    if st.session_state.role=='student':
+        # Display logo
+        col1, col2, col3 = st.columns((1,1,1))
+        col2.image(open_config()['images']['logo_full'], use_container_width=True)
+        st.markdown("----")
 
     # Display courses
     explore_courses()

@@ -9,7 +9,7 @@ st.set_page_config(page_title="Edit Section",
 from utils.frontend.menu import menu
 from utils.data.session_manager import SessionManager as sm
 from utils.data.aws import update_section, update_section_assistant
-from utils.frontend.playlab import display_conversation
+from utils.frontend.playlab import display_conversation, moderate_content
 from utils.core.config import open_config
 from utils.core.error_handling import catch_error
 from utils.frontend.assistants import display_assistant_selection
@@ -65,34 +65,42 @@ section_overview = st.text_area(
 selected_assistant_id = display_assistant_selection(course_code, section)
 
 success_banner = st.empty()
+st.session_state.moderator_spinner = st.container()
 
 # Save button
 if st.button("Save Section", type="primary", use_container_width=True):
+
+
     try:
-        
-        if update_section(
-            course_code=course_code,
-            unit_id=unit_id,
-            section_id=section.id,
-            title=section_title,
-            overview=section_overview,
-            content=st.session_state.get('editor_content')
-        ):
-            # Update the assistant for this section
-            if update_section_assistant(
+        # Moderator
+        is_appropriate, feedback = moderate_content(section_title, 
+                                                    section_type='content')
+        if not is_appropriate:
+            success_banner.error(f'Your section could not be saved. {feedback}')
+        else:
+            if update_section(
                 course_code=course_code,
                 unit_id=unit_id,
                 section_id=section.id,
-                assistant_id=selected_assistant_id
+                title=section_title,
+                overview=section_overview,
+                content=st.session_state.get('editor_content')
             ):
-                success_banner.success("Section updated successfully!")
-                page_header.empty()
-                page_header.markdown(f"<h1 style='text-align: center; color: grey;'>{section_title}</h1>", unsafe_allow_html=True)
+                # Update the assistant for this section
+                if update_section_assistant(
+                    course_code=course_code,
+                    unit_id=unit_id,
+                    section_id=section.id,
+                    assistant_id=selected_assistant_id
+                ):
+                    success_banner.success("Section updated successfully!")
+                    page_header.empty()
+                    page_header.markdown(f"<h1 style='text-align: center; color: grey;'>{section_title}</h1>", unsafe_allow_html=True)
 
+                else:
+                    catch_error()
             else:
                 catch_error()
-        else:
-            catch_error()
     except Exception as e:
         catch_error()
 

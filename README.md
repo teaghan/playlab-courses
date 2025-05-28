@@ -11,6 +11,7 @@ A platform that allows educators to create AI-enhanced course websites with buil
 
 - **AI-Powered Course Creation**: AI helps teachers create and improve their course materials
 - **Personalized Learning Support**: Build AI tutors that help students learn in ways that work best for them
+- **Content Moderation**: Automated review system ensures all course content meets educational standards and appropriateness guidelines
 - **Easy Organization**: Simple tools to arrange your course into units and sections
 - **Export Your Work**: Save your course materials as Word docs, text files, or PDFs
 - **Ready-to-Use Templates**: Save time by using existing content as starting points for new lessons

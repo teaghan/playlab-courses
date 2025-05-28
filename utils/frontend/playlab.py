@@ -9,6 +9,7 @@ from utils.core.logger import logger
 from tempfile import NamedTemporaryFile
 import os
 from utils.core.error_handling import catch_error
+from utils.core.config import open_config
 
 custom_button = button_style()
 
@@ -86,6 +87,14 @@ def message_fn(message, role='student', section_title='', section_type='content'
         "content": """{st.session_state.get("editor_content", "")}""",
         "template_content": """{st.session_state.get("template_content", "")}"""
     }}'''
+    elif role == 'moderator':
+        message = f'''{{
+        "course_name": """{st.session_state.get('course_name', '')}""",
+        "student_grade": """{st.session_state.get('grade_level', '')}""",
+        "unit_title": """{st.session_state.section.unit_title}""",
+        "module_title": """{section_title}""",
+        "content": """{message}""",
+    }}'''
     
     elif role == 'student':
         if len(st.session_state.messages) > 2:
@@ -122,7 +131,7 @@ def response_fn(response, role='student'):
             st.session_state['editor_content'] = response['content']
             st.session_state['update_editor'] = True
 
-def parse_ai_response(text: str) -> dict:
+def parse_ai_response(text: str, keys=['message', 'content']) -> dict:
     """
     Parse a string to extract 'message' and 'content' values.
     Returns a dictionary containing the found keys and their values.
@@ -135,7 +144,6 @@ def parse_ai_response(text: str) -> dict:
         dict: Dictionary with 'message' and/or 'content' keys and their corresponding values
     """
     result = {}
-    keys = ['message', 'content']
     
     for key in keys:
         key_with_quotes = f'"{key}":'
@@ -360,3 +368,88 @@ def display_conversation(project_id, user='student', section_title='', section_t
     #scroll_to('bottom')
 
     return response
+
+def moderate_content(section_title, section_type='content', max_retries=3):
+    """
+    Moderates content for appropriateness using an AI model.
+    
+    Args:
+        section_title (str): Title of the section being moderated
+        section_type (str): Type of section ('content' or 'file')
+        max_retries (int): Maximum number of retries for failed attempts
+        
+    Returns:
+        tuple: (bool, str) where bool indicates if content is appropriate,
+               and str contains feedback message or error details
+    """
+    try:
+        # Load the moderator model
+        config = open_config()
+        if 'playlab' not in config or 'section_moderator' not in config['playlab']:
+            return False, "Configuration error: Missing moderator settings"
+            
+        project_id = config['playlab']['section_moderator']
+        moderator_app = load_model(project_id)
+
+        # Ensure moderator spinner exists
+        if 'moderator_spinner' not in st.session_state:
+            st.session_state.moderator_spinner = st.container()
+
+        with st.session_state.moderator_spinner, st.spinner("Evaluating the section contents..."):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    if section_type == 'file':
+                        if 'pdf_content' not in st.session_state:
+                            return False, "Error: No PDF content found to moderate"
+                            
+                        # Create temporary file for PDF content
+                        with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmp_file:
+                            tmp_file.write(st.session_state['pdf_content'])
+                            
+                            # Tell the moderator that content is in PDF
+                            content = "The content is attached as a PDF file to this message."
+                            prompt = message_fn(content, 'moderator', section_title, section_type)
+                            logger.info(f'MODERATOR PROMPT:\n\n{prompt}\n\n')
+                            
+                            # Send message with file path
+                            response = moderator_app.send_message(prompt, file_path=tmp_file.name)
+                    else:
+                        # Use the editor content
+                        content = st.session_state.get("editor_content", "")
+                        if not content.strip():
+                            return False, "Error: No content found to moderate"
+                            
+                        prompt = message_fn(content, 'moderator', section_title, section_type)
+                        logger.info(f'MODERATOR PROMPT:\n\n{prompt}\n\n')
+                        response = moderator_app.send_message(prompt)
+                        logger.info(f'MODERATOR RESPONSE:\n\n{response}\n\n')
+
+                    # Parse response looking for required fields
+                    parsed = parse_ai_response(response['content'], keys=['consideration', 'assessment', 'feedback'])
+                    logger.info(f'MODERATOR PARSED RESPONSE:\n\n{parsed}\n\n')
+                    if not parsed.get('assessment'):
+                        if retries == max_retries - 1:
+                            return False, "Error: Could not get clear assessment from moderator"
+                        retries += 1
+                        prompt = 'There was an issue with the previous response. Perhaps the parsing was not able to interpret the response correctly. Please try again. Write your response again.'
+                        continue
+
+                    is_inappropriate = 'inappropriate' in parsed['assessment'].lower()
+                    if is_inappropriate:
+                        feedback = parsed.get('feedback', 'Content was found to be inappropriate')
+                        return False, feedback
+                    return True, ""
+
+                except Exception as e:
+                    if retries == max_retries - 1:
+                        logger.error(f"Error in moderation attempt {retries + 1}: {str(e)}")
+                        return False, f"Error during moderation: {str(e)}"
+                    retries += 1
+                    prompt = 'There was an error processing the previous response. Please try again.'
+
+    except Exception as e:
+        logger.error(f"Critical error in content moderation: {str(e)}")
+        return False, f"Critical error during moderation: {str(e)}"
+    
+
