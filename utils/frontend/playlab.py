@@ -399,7 +399,7 @@ def moderate_content(section_title, section_type='content', max_retries=3, file_
         project_id = config['playlab']['section_moderator']
         moderator_app = load_model(project_id)
         if moderator_app is None:
-            return True, "AI assistance is currently unavailable due to API access issues. Please try again later."
+            return True, "AI moderation is currently unavailable due to API access issues. Please try again later."
 
         # Ensure moderator spinner exists
         if 'moderator_spinner' not in st.session_state:
