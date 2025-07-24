@@ -16,8 +16,11 @@ custom_button = button_style()
 
 # Load model
 def load_model(project_id):
-    app = PlaylabApp(project_id=project_id, verbose=False)
-    return app
+    try:
+        app = PlaylabApp(project_id=project_id, verbose=False)
+        return app
+    except Exception as e:
+        return None
 
 # Function to stream text letter by letter
 def stream_text(text):
@@ -192,6 +195,9 @@ def display_conversation(project_id, user='student', section_title='', section_t
 
     if not st.session_state.model_loaded:
         st.session_state.ai_app = load_model(project_id)
+        if st.session_state.ai_app is None:
+            st.markdown('AI assistance is currently unavailable due to API access issues. Please try again later.')
+            return
         st.session_state.messages.append({"role": "assistant", "content": rf"{st.session_state.ai_app.initial_message}"})    
         st.session_state.model_loaded = True
 
